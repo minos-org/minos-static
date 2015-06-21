@@ -1,0 +1,256 @@
+#!/bin/sh
+#description: sync misc static programs and save them to ./misc/$(uname -m)/pkg
+
+bdir="$(cd "$(dirname "${0}")" && pwd)"
+alert_mails="m#%#javier.io"
+PS4="> "
+
+_basename()
+{
+    [ -z "${1}" ] && return 1 || _basename__name="${1}"
+    [ -z "${2}" ] || _basename__suffix="${2}"
+    case "${_basename__name}" in
+        /*|*/*) _basename__name="$(expr "${_basename__name}" : '.*/\([^/]*\)')" ;;
+    esac
+
+    if [ -n "${_basename__suffix}" ] && [ "${#_basename__name}" -gt "${#2}" ]; then
+        if [ X"$(printf "%s" "${_basename__name}" | cut -c"$((${#_basename__name} - ${#_basename__suffix} + 1))"-"${#_basename__name}")" \
+           = X"$(printf "%s" "${_basename__suffix}")" ]; then
+            _basename__name="$(printf "%s" "${_basename__name}" | cut -c1-"$((${#_basename__name} - ${#_basename__suffix}))")"
+        fi
+    fi
+
+    printf "%s\\n" "${_basename__name}"
+}
+
+_warning()
+{
+    [ -z "${1}" ] && return 1
+    printf "%b\\n" "${*}" >&2
+    if command -v "mailgun" >/dev/null; then
+        for mail in ${alert_mails}; do
+            mail="$(printf "%s\\n" "${mail}" | sed "s:#%#:@:")"
+            mailgun --subject "${progname}: WARNING - ${1}" "${mail}" "$(
+            printf "+---Trace-----------------------------\\n"
+            printf "%b\\n" "${*}"
+            printf "+-------------------------------------\\n"
+            )" >/dev/null
+        done
+    fi
+}
+
+_die()
+{
+    [ -z "${1}" ] && return 1
+    printf "%b\\n" "${*}" >&2
+    if command -v "mailgun" >/dev/null; then
+        for mail in ${alert_mails}; do
+            mail="$(printf "%s\\n" "${mail}" | sed "s:#%#:@:")"
+            mailgun --subject "${progname}: FAILED" "${mail}" "$(
+            printf "+---Trace-----------------------------\\n"
+            printf "%b\\n" "${*}"
+            printf "+-------------------------------------\\n"
+            )" >/dev/null
+        done
+    fi
+    exit 1
+}
+
+_normalize()
+{
+    [ -z "${1}" ] && return 1
+    _normalize__bname="$(_basename "${1}")"
+    _normalize__origin="${1##http://}"
+    _normalize__origin="${_normalize__origin##https://}"
+    _normalize__origin="${_normalize__origin##ftp://}"
+    _normalize__origin="${_normalize__origin##ftps://}"
+    _normalize__origin="${_normalize__origin%%/*}"
+
+    _normalize__output="$(tempfile)"
+    case "${_normalize__bname}" in
+        *.tar.gz) return 0 ;;
+        *.tar.*)
+            #requires a modern tar version
+            tar xf "${_normalize__bname}" > "${_normalize__output}" 2>&1 ||
+            { _normalize__stdoutb="$(tail -100 "${_normalize__output}")"; rm -rf "${_normalize__output}";
+            _warning "failed to untar ${_normalize__bname}\\n" "$(printf "%s\\n" "${_normalize__stdoutb}")";
+            return 1; }
+            _normalize__bname="$(tar tf "${_normalize__bname}"| head -1)"
+            ;;
+        *.zip)
+            unzip "${_normalize__bname}" > "${_normalize__output}" 2>&1 ||
+            { _normalize__stdoutb="$(tail -100 "${_normalize__output}")"; rm -rf "${_normalize__output}";
+            _warning "failed to unzip ${_normalize__bname}\\n" "$(printf "%s\\n" "${_normalize__stdoutb}")";
+            return 1; }
+            _normalize__bname="${_normalize__bname%%.zip}"
+            ;;
+        *.rar)
+            unrar "${_normalize__bname}" > "${_normalize__output}" 2>&1 ||
+            { _normalize__stdoutb="$(tail -100 "${_normalize__output}")"; rm -rf "${_normalize__output}";
+            _warning "failed to unrar ${_normalize__bname}\\n" "$(printf "%s\\n" "${_normalize__stdoutb}")";
+            return 1; }
+            _normalize__bname="${_normalize__bname%%.rar}"
+            ;;
+        *)
+            [ -f "${_normalize__bname}" ] || { _warning "unsupported format ${1}\\n"; return 1; }
+        ;;
+    esac
+
+    _normalize__bname="${_normalize__bname%%/}"
+    _normalize__target="${_normalize__bname}-${_normalize__origin}"
+    tar -zcf "${_normalize__target}.tar.gz" "${_normalize__bname}"  > "${_normalize__output}" 2>&1 ||
+    { _normalize__stdoutb="$(tail -100 "${_normalize__output}")"; rm -rf "${_normalize__output}";
+    _warning "failed to tar ${_normalize__bname}\\n" "$(printf "%s\\n" "${_normalize__stdoutb}")";
+    return 1; }
+    rm -rf "${_normalize__output}" "${_normalize__bname}"
+    printf "%s" "${_normalize__target}.tar.gz"
+}
+
+_repackage()
+{
+    [ -z "${2}" ] && return 1
+    _repackage__bname="$(_basename "${1}" .tar.gz)"
+    _repackage__dname="/tmp/"${progname}".repackage"
+    _repackage_init()
+    {
+        mkdir -p "${_repackage__dname}"
+        [ -d "${_repackage__dname}/${_repackage__bname}" ] && return 0
+        (cd  "${_repackage__dname}" && mkdir "${_repackage__bname}" && tar xf "${1}" -C "${_repackage__bname}")
+    }
+    case "${2}" in
+        bz2) [ -f "${_repackage__dname}/${_repackage__bname}.tar.bz2" ] && return 0
+            _repackage_init "${1}"
+            (cd  "${_repackage__dname}" && tar -C "${_repackage__bname}" -jcf "${_repackage__bname}".tar.bz2 .)
+            cp "${_repackage__dname}/${_repackage__bname}.tar.bz2" .
+            ;;
+         xz) [ -f "${_repackage__dname}/${_repackage__bname}.tar.xz" ]  && return 0
+            _repackage_init "${1}"
+            (cd  "${_repackage__dname}" && tar -C "${_repackage__bname}" -Jcf "${_repackage__bname}".tar.xz .)
+            cp "${_repackage__dname}/${_repackage__bname}.tar.xz"  .
+            ;;
+          *) rm -rf "${_repackage__dname}" ;;
+    esac
+}
+
+_cook_recipe()
+{
+    [ -f "${1}" ] || return 1
+    _cook_recipe__output="$(tempfile)"
+    while read _cook_recipe__url; do
+        case "${_cook_recipe__url}" in
+            '#'*) : ;;
+            *)
+                _cook_recipe__bname="$(_basename "${_cook_recipe__url}")"
+                _cook_recipe__bname_without_suffix="${_cook_recipe__bname%%.tar*}"
+                _cook_recipe__bname_without_suffix="${_cook_recipe__bname_without_suffix%%.zip}"
+                _cook_recipe__bname_without_suffix="${_cook_recipe__bname_without_suffix%%.rar}"
+                _cook_recipe__origin="${_cook_recipe__url##http://}"
+                _cook_recipe__origin="${_cook_recipe__origin##https://}"
+                _cook_recipe__origin="${_cook_recipe__origin##ftp://}"
+                _cook_recipe__origin="${_cook_recipe__origin##ftps://}"
+                _cook_recipe__origin="${_cook_recipe__origin%%/*}"
+
+                (
+                mkdir -p "${_cook_recipe__origin}"-"${_cook_recipe__bname_without_suffix}"
+                cd "${_cook_recipe__origin}"-"${_cook_recipe__bname_without_suffix}"
+
+                [ -f "${_cook_recipe__bname}" ] || touch "${_cook_recipe__bname}"
+                _cook_recipe__hash_orig="$(shasum -a 512 "${_cook_recipe__bname}" | awk '{print $1}')"
+                printf "%s\\n" "   fetching ${_cook_recipe__url} ..."
+                wget -c -N  -q "${_cook_recipe__url}" > "${_cook_recipe__output}" 2>&1 ||
+                { _cook_recipe__stdoutb="$(tail -100 "${_cook_recipe__output}")"; rm -rf "${_cook_recipe__output}";
+                _warning "couldn't retrieve ${_cook_recipe__url}\\n" "$(printf "%s\\n" "${_wget__stdoutb}")"; }
+                _cook_recipe__hash_new="$(shasum -a 512 "${_cook_recipe__bname}" | awk '{print $1}')"
+                if [ "${_cook_recipe__hash_orig}" != "${_cook_recipe__hash_new}" ]; then
+                    _cook_recipe__normal="$(_normalize "${_cook_recipe__url}")"
+                    [ -n "${_cook_recipe__normal}" ]  || return 1
+                    _repackage "${PWD}/${_cook_recipe__normal}" bz2
+                    _repackage "${PWD}/${_cook_recipe__normal}" xz
+                    _repackage "${PWD}/${_cook_recipe__normal}" cleanup
+                    mv "${_cook_recipe__normal}" ..
+                    mv "${_cook_recipe__normal%%.gz}".bz2 ..
+                    mv "${_cook_recipe__normal%%.gz}".xz  ..
+                fi
+                )
+                ;;
+        esac
+    done < "${1}"
+    rm -rf "${_cook_recipe__output}"
+}
+
+progname="$(_basename ${0})"
+nonroot_user="$(getent passwd | awk -F: '{if ($3 >= 1000 && $3 < 60000) print $1}'|head -1)"
+
+if ! command -v "wget" >/dev/null; then
+    _die "you need to install 'wget' to run this program"
+fi
+
+exec 9>/tmp/"${progname}".lock #verify that only one instance is running
+if ! flock -n 9; then          #http://mywiki.wooledge.org/BashFAQ/045
+    _die "${progname}: another instance is running";
+fi
+
+mkdir -p "${bdir}"/misc-build/i686
+mkdir -p "${bdir}"/misc-build/x86_64
+mkdir -p "${bdir}"/misc/i686
+mkdir -p "${bdir}"/misc/x86_64
+
+#create packages
+for recipe in "${bdir}"/misc-autosync-resources/*; do
+    [ ! -f "${recipe}" ] && continue
+    brecipe="$(_basename "${recipe}")"
+    printf "%s\\n" "cooking ${brecipe} recipe ..."
+    case "${recipe}" in
+        *.64) (cd "${bdir}"/misc-build/x86_64 && _cook_recipe "${recipe}") ;;
+        *)    (cd "${bdir}"/misc-build/i686   && _cook_recipe "${recipe}") ;;
+    esac
+done
+
+#move packages
+printf "%s\\n" "moving archives ...";
+for archive in "${bdir}"/misc-build/i686/*.tar.gz "${bdir}"/misc-build/i686/*.tar.bz2 "${bdir}"/misc-build/i686/*.tar.xz; do
+    [ ! -f "${archive}" ] && continue
+    mv "${archive}" "${bdir}"/misc/i686/
+done
+
+for archive in "${bdir}"/misc-build/x86_64/*.tar.gz "${bdir}"/misc-build/x86_64/*.tar.bz2 "${bdir}"/misc-build/x86_64/*.tar.xz; do
+    [ ! -f "${archive}" ] && continue
+    mv "${archive}" "${bdir}"/misc/x86_64/
+done
+
+#create index
+printf "%s\\n" "creating index ...";
+(cd "${bdir}"/misc/i686/   && rm -rf sha512sum.* md5sum.*)
+(cd "${bdir}"/misc/i686/   && shasum -a 512 *tar* > sha512sum.txt 2>/dev/null)
+(cd "${bdir}"/misc/i686/   && md5sum *tar* > md5sum.txt 2>/dev/null)
+
+(cd "${bdir}"/misc/x86_64/ && rm -rf sha512sum.* md5sum.*)
+(cd "${bdir}"/misc/x86_64/ && shasum -a 512 *tar* > sha512sum.txt 2>/dev/null)
+(cd "${bdir}"/misc/x86_64/ && md5sum *tar* > md5sum.txt 2>/dev/null)
+
+[ X"$(ls "${bdir}"/misc/i686/*tar*|wc -l)" = X"$(wc -l "${bdir}"/misc/i686/sha512sum.txt|awk '{print $1}')" ] || \
+    _die "Package entries don't match total archives(i686)\\n"     \
+    "sha512 entries:$(wc -l "${bdir}"/misc/i686/sha512sum.txt)\\n" \
+    "archives      :$(ls "${bdir}"/misc/i686/*tar*|wc -l)"
+
+[ X"$(ls "${bdir}"/misc/x86_64/*tar*|wc -l)" = X"$(wc -l "${bdir}"/misc/x86_64/sha512sum.txt|awk '{print $1}')" ] || \
+    _die "Package entries don't match total archives(x86_64)\\n"     \
+    "sha512 entries:$(wc -l "${bdir}"/misc/x86_64/sha512sum.txt)\\n" \
+    "archives      :$(ls "${bdir}"/misc/x86_64/*tar*|wc -l)"
+
+#compress index
+(cd "${bdir}"/misc/i686/ && tar -zcf sha512sum.tar.gz  sha512sum.txt)
+(cd "${bdir}"/misc/i686/ && tar -jcf sha512sum.tar.bz2 sha512sum.txt)
+(cd "${bdir}"/misc/i686/ && tar -Jcf sha512sum.tar.xz  sha512sum.txt)
+(cd "${bdir}"/misc/i686/ && tar -zcf md5sum.tar.gz  md5sum.txt)
+(cd "${bdir}"/misc/i686/ && tar -jcf md5sum.tar.bz2 md5sum.txt)
+(cd "${bdir}"/misc/i686/ && tar -Jcf md5sum.tar.xz  md5sum.txt)
+
+(cd "${bdir}"/misc/x86_64/ && tar -zcf sha512sum.tar.gz  sha512sum.txt)
+(cd "${bdir}"/misc/x86_64/ && tar -jcf sha512sum.tar.bz2 sha512sum.txt)
+(cd "${bdir}"/misc/x86_64/ && tar -Jcf sha512sum.tar.xz  sha512sum.txt)
+(cd "${bdir}"/misc/x86_64/ && tar -zcf md5sum.tar.gz  md5sum.txt)
+(cd "${bdir}"/misc/x86_64/ && tar -jcf md5sum.tar.bz2 md5sum.txt)
+(cd "${bdir}"/misc/x86_64/ && tar -Jcf md5sum.tar.xz  md5sum.txt)
+
+chown -R "${nonroot_user}:${nonroot_user}" "${bdir}"/misc/

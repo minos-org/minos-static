@@ -1,0 +1,208 @@
+#!/bin/sh
+#description: build all bifrost packages and save them to ./bifrost/$(uname -m)/pkg
+
+bdir="$(cd "$(dirname "${0}")" && pwd)"
+alert_mails="m#%#javier.io"
+PS4="> "
+
+_basename()
+{
+    [ -z "${1}" ] && return 1 || _basename__name="${1}"
+    [ -z "${2}" ] || _basename__suffix="${2}"
+    case "${_basename__name}" in
+        /*|*/*) _basename__name="$(expr "${_basename__name}" : '.*/\([^/]*\)')" ;;
+    esac
+
+    if [ -n "${_basename__suffix}" ] && [ "${#_basename__name}" -gt "${#2}" ]; then
+        if [ X"$(printf "%s" "${_basename__name}" | cut -c"$((${#_basename__name} - ${#_basename__suffix} + 1))"-"${#_basename__name}")" \
+           = X"$(printf "%s" "${_basename__suffix}")" ]; then
+            _basename__name="$(printf "%s" "${_basename__name}" | cut -c1-"$((${#_basename__name} - ${#_basename__suffix}))")"
+        fi
+    fi
+
+    printf "%s\\n" "${_basename__name}"
+}
+
+_warning()
+{
+    [ -z "${1}" ] && return 1
+    printf "%b\\n" "${*}" >&2
+    if command -v "mailgun" >/dev/null; then
+        for mail in ${alert_mails}; do
+            mail="$(printf "%s\\n" "${mail}" | sed "s:#%#:@:")"
+            mailgun --subject "${progname}: WARNING - ${1}" "${mail}" "$(
+            printf "+---Trace-----------------------------\\n"
+            printf "%b\\n" "${*}"
+            printf "+-------------------------------------\\n"
+            )" >/dev/null
+        done
+    fi
+}
+
+_die()
+{
+    [ -z "${1}" ] && return 1
+    printf "%b\\n" "${*}" >&2
+    if command -v "mailgun" >/dev/null; then
+        for mail in ${alert_mails}; do
+            mail="$(printf "%s\\n" "${mail}" | sed "s:#%#:@:")"
+            mailgun --subject "${progname}: FAILED" "${mail}" "$(
+            printf "+---Trace-----------------------------\\n"
+            printf "%b\\n" "${*}"
+            printf "+-------------------------------------\\n"
+            )" >/dev/null
+        done
+    fi
+    exit 1
+}
+
+_clone()
+{
+    [ -z "${1}" ] && return 1
+    [ -z "${2}" ] && _clone__target="${bdir}/$(_basename "${1}")" || _clone__target="${2}"
+    _clone__stdout="$(tempfile)"
+
+    printf "%s\\n" "cloning: ${1}"
+    if [ -d "${_clone__target}" ]; then
+         (cd "${_clone__target}" && git pull) > "${_clone__stdout}" 2>&1
+    else
+        git clone --depth=1 "${1}" "${_clone__target}" > "${_clone__stdout}" 2>&1
+    fi
+    if [ ! -d "${_clone__target}" ]; then
+        _clone__stdoutb="$(cat "${_clone__stdout}")"; rm -rf "${_clone__stdout}"
+        _die "failed to clone ${1} to ${_clone__target}\\n" \
+             "$(printf "%s\\n" "${_clone__stdoutb}")"
+    fi
+    rm -f "${_clone__stdout}"
+}
+
+_diff_recipes()
+{
+    [ -z "${2}" ] && return 1
+    mkfifo "/tmp/${progname}.fifo1"
+    mkfifo "/tmp/${progname}.fifo2"
+    if [ -e "/tmp/${progname}.fifo1" ] && [ -e "/tmp/${progname}.fifo2" ]; then
+        _diff_recipes__1="$(find "${1}/all" "${1}/broken" -type d|awk -F"/" '{print $NF}')"
+        _diff_recipes__2="$(find "${2}/all" -type d|awk -F"/" '{print $NF}')"
+        printf "%s\\n" "${_diff_recipes__1}" > "/tmp/${progname}.fifo1" &
+        printf "%s\\n" "${_diff_recipes__2}" > "/tmp/${progname}.fifo2" &
+        awk 'NR == FNR { A[$0]=1; next } !A[$0]' "/tmp/${progname}.fifo1" "/tmp/${progname}.fifo2"
+        rm -rf "/tmp/${progname}".fifo*
+    else
+        _die "failed to create fifo files"
+    fi
+}
+
+_repackage()
+{
+    [ -z "${2}" ] && return 1
+    _repackage__bname="$(_basename "${1}" .tar.gz)"
+    _repackage__dname="$(dirname   "${1}")"
+    _repackage_init()
+    {
+        [ -d "${_repackage__dname}/${_repackage__bname}" ] && return 0
+        (cd  "${_repackage__dname}" && mkdir "${_repackage__bname}" && tar xf "${1}" -C "${_repackage__bname}")
+    }
+    case "${2}" in
+        bz2) [ -f "${_repackage__dname}/${_repackage__bname}.tar.bz2" ] && return 0
+            _repackage_init "${1}"
+            (cd  "${_repackage__dname}" && tar -C "${_repackage__bname}" -jcf "${_repackage__bname}".tar.bz2 .) ;;
+         xz) [ -f "${_repackage__dname}/${_repackage__bname}.tar.xz" ]  && return 0
+            _repackage_init "${1}"
+            (cd  "${_repackage__dname}" && tar -C "${_repackage__bname}" -Jcf "${_repackage__bname}".tar.xz .) ;;
+          *) rm -rf "${_repackage__dname}/${_repackage__bname}" ;;
+    esac
+}
+
+progname="$(_basename ${0})"
+nonroot_user="$(getent passwd | awk -F: '{if ($3 >= 1000 && $3 < 60000) print $1}'|head -1)"
+
+if ! command -v "git" >/dev/null; then
+    _die "you need to install 'git' to run this program"
+fi
+
+[ X"${LOGNAME}" != X"root" ] && _die "this program can only be run by root (because of chroot), exiting."
+
+exec 9>/tmp/"${progname}".lock #verify that only one instance is running
+if ! flock -n 9; then          #http://mywiki.wooledge.org/BashFAQ/045
+    _die "${progname}: another instance is running";
+fi
+
+#get sources
+_clone git://github.com/minos-org/bifrost-build "${bdir}/bifrost-build/minos-bifrost"
+_clone git://github.com/jelaas/bifrost-build    "${bdir}/bifrost-build/upstream-bifrost"
+"${bdir}"/bifrost-build/minos-bifrost/wget-finder -O "${bdir}"/bifrost-build/mini-native-i586.tar.bz2 \
+    mini-native-i586.tar.bz2:e812185082e4ab30b3799c19e5b8fb50 >/dev/null
+[ ! -f "${bdir}"/bifrost-build/mini-native-i586.tar.bz2 ] && _die "failed to fetch mini-native-i586.tar.bz2"
+
+#send a msg if upstream has added new recipes
+extra_recipes="$(_diff_recipes "${bdir}/bifrost-build/minos-bifrost" "${bdir}/bifrost-build/upstream-bifrost")"
+if [ ! -z "${extra_recipes}" ]; then
+    _warning "extra recipes found in jelaas/bifrost-build:" "\\n\\n${extra_recipes}\\n"
+fi
+
+#setup base environment
+[ ! -d "${bdir}/bifrost-build/mini-native-i586/" ] && (cd "${bdir}/bifrost-build/" && tar xf mini-native-i586.tar.bz2)
+rm -rf   "${bdir}/bifrost-build/mini-native-i586/var/lib/"
+mkdir -p "${bdir}/bifrost-build/mini-native-i586/var/lib/"
+cp -r "${bdir}/bifrost-build/minos-bifrost" "${bdir}/bifrost-build/mini-native-i586/var/lib/build"
+cp -p "${bdir}/bifrost-build/mini-native-i586/var/lib/build/util/chroot-i586-build.sh" "${bdir}/bifrost-build/"
+cp -p "${bdir}/bifrost-build/mini-native-i586/var/lib/build/util/chroot-i586.sh" "${bdir}/bifrost-build/"
+cp -p "${bdir}/bifrost-build/mini-native-i586/var/lib/build/util/env-build.sh"   "${bdir}/bifrost-build/mini-native-i586/bin/"
+cp -p "${bdir}/bifrost-build/mini-native-i586/var/lib/build/util/env-setup.sh"   "${bdir}/bifrost-build/mini-native-i586/bin/"
+
+#build packages
+for recipe in "${bdir}"/bifrost-build/mini-native-i586/var/lib/build/all/*; do
+    [ ! -d "${recipe}" ] && continue
+    recipe="$(_basename "${recipe}")"
+    case "${recipe}" in #skip kernel and other metapackages to save cpu resources
+        *kernel*|*bifrost*|mini-native*) continue ;;
+    esac
+    [ -f "${bdir}"/bifrost-build/mini-native-i586/var/spool/pkg/"${recipe}".tar.gz ] && continue
+    printf "%s\\n" "building ${recipe} ..."
+    (cd "${bdir}"/bifrost-build/ && ./chroot-i586-build.sh "${recipe}" >/dev/null)
+    if [ ! -f "${bdir}"/bifrost-build/mini-native-i586/var/spool/pkg/"${recipe}".tar.gz ]; then
+        _warning "${recipe} failed to build" "\\n$(tail -100 "${bdir}/bifrost-build/mini-native-i586/var/log/build/${recipe}.log")"
+    fi
+done
+
+umount "${bdir}"/bifrost-build/mini-native-i586/proc "${bdir}"/bifrost-build/mini-native-i586/sys 2>/dev/null
+[ ! -d "${bdir}"/bifrost/i686 ] && mkdir -p "${bdir}"/bifrost/i686
+
+#copy packages
+printf "%s\\n" "creating archives ..."; _recipe__stdout="$(tempfile)"
+pkgs="0"; for archive in "${bdir}"/bifrost-build/mini-native-i586/var/spool/pkg/*.tar.gz; do
+    pkgs="$(($pkgs + 1))"
+    barchive="$(_basename "${archive}")"
+    [ -f "${bdir}"/bifrost/i686/"${barchive}" ] && continue
+    cp -p "${archive}" "${bdir}"/bifrost/i686/
+    [ ! -f "${bdir}"/bifrost/i686/"${barchive}" ] && _die "couldn't copy ${archive} to "${bdir}"/bifrost/i686/ , full disk?"
+done
+
+#repack them, in bz2 and xz archives
+archive=""; for archive in "${bdir}"/bifrost/i686/*.tar.gz; do
+    _repackage "${archive}" bz2
+    _repackage "${archive}" xz
+    _repackage "${archive}" cleanup
+done
+
+(cd "${bdir}"/bifrost/i686/ && rm -rf sha512sum.* md5sum.*)
+(cd "${bdir}"/bifrost/i686/ && shasum -a 512 *tar* > sha512sum.txt 2>/dev/null)
+(cd "${bdir}"/bifrost/i686/ && md5sum *tar* > md5sum.txt 2>/dev/null)
+[ X"$(($pkgs * 3))" = X"$(wc -l "${bdir}"/bifrost/i686/sha512sum.txt|awk '{print $1}')" ] || \
+    _die "Package entries don't match total archives\\n"     \
+    "sha512 entries:$(wc -l "${bdir}"/bifrost/i686/sha512sum.txt)\\n" \
+    "archives      :$(ls "${bdir}"/bifrost/i686/*tar*|wc -l)"
+
+(cd "${bdir}"/bifrost/i686/ && tar -zcf sha512sum.tar.gz  sha512sum.txt)
+(cd "${bdir}"/bifrost/i686/ && tar -jcf sha512sum.tar.bz2 sha512sum.txt)
+(cd "${bdir}"/bifrost/i686/ && tar -Jcf sha512sum.tar.xz  sha512sum.txt)
+(cd "${bdir}"/bifrost/i686/ && tar -zcf md5sum.tar.gz  md5sum.txt)
+(cd "${bdir}"/bifrost/i686/ && tar -jcf md5sum.tar.bz2 md5sum.txt)
+(cd "${bdir}"/bifrost/i686/ && tar -Jcf md5sum.tar.xz  md5sum.txt)
+
+#use x86 binaries for x64, build of x64 binaries could be in the future when more hardware resources are available
+[ -d "${bdir}"/bifrost/x86_64 ] && rm -rf "${bdir}"/bifrost/x86_64/* || mkdir -p "${bdir}"/bifrost/x86_64
+ln -s "${bdir}"/bifrost/i686/* "${bdir}"/bifrost/x86_64/
+
+chown -R "${nonroot_user}:${nonroot_user}" "${bdir}"/bifrost/

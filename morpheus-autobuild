@@ -1,0 +1,364 @@
+#!/bin/sh
+#description: build all morpheus packages and save them to ./morpheus/$(uname -m)/pkg
+
+bdir="$(cd "$(dirname "${0}")" && pwd)"
+alert_mails="m#%#javier.io"
+PS4="> "
+
+_basename()
+{
+    [ -z "${1}" ] && return 1 || _basename__name="${1}"
+    [ -z "${2}" ] || _basename__suffix="${2}"
+    case "${_basename__name}" in
+        /*|*/*) _basename__name="$(expr "${_basename__name}" : '.*/\([^/]*\)')" ;;
+    esac
+
+    if [ -n "${_basename__suffix}" ] && [ "${#_basename__name}" -gt "${#2}" ]; then
+        if [ X"$(printf "%s" "${_basename__name}" | cut -c"$((${#_basename__name} - ${#_basename__suffix} + 1))"-"${#_basename__name}")" \
+           = X"$(printf "%s" "${_basename__suffix}")" ]; then
+            _basename__name="$(printf "%s" "${_basename__name}" | cut -c1-"$((${#_basename__name} - ${#_basename__suffix}))")"
+        fi
+    fi
+
+    printf "%s\\n" "${_basename__name}"
+}
+
+_strreplace()
+{  #replace param in string, return 1 on failure
+    #http://www.unix.com/shell-programming-and-scripting/124160-replace-word-string.html
+    _strreplace__orig="${1}"
+    [ -n "${3}" ] || return 1 #nothing to search for: error
+    _strreplace__srch="${2}"  #pattern to replace
+    _strreplace__rep="${3}"   #replacement string
+    case "${_strreplace__orig}" in
+        *"${_strreplace__srch}"*) #if pattern exists in the string
+            _strreplace__sr1="${_strreplace__orig%%$_strreplace__srch*}" #take the string preceding the first match
+            _strreplace__sr2="${_strreplace__orig#*$_strreplace__srch}"  #and the string following the first match
+            _strreplace__orig="${_strreplace__sr1}${_strreplace__rep}${_strreplace__sr2}" #and sandwich the replacement string between them
+            ;;
+    esac
+    printf "%s" "${_strreplace__orig}"
+}
+
+_warning()
+{
+    [ -z "${1}" ] && return 1
+    printf "%b\\n" "${*}" >&2
+    if command -v "mailgun" >/dev/null; then
+        for mail in ${alert_mails}; do
+            mail="$(printf "%s\\n" "${mail}" | sed "s:#%#:@:")"
+            mailgun --subject "${progname}: WARNING - ${1}" "${mail}" "$(
+            printf "+---Trace-----------------------------\\n"
+            printf "%b\\n" "${*}"
+            printf "+-------------------------------------\\n"
+            )" >/dev/null
+        done
+    fi
+}
+
+_die()
+{
+    [ -z "${1}" ] && return 1
+    printf "%b\\n" "${*}" >&2
+    if command -v "mailgun" >/dev/null; then
+        for mail in ${alert_mails}; do
+            mail="$(printf "%s\\n" "${mail}" | sed "s:#%#:@:")"
+            mailgun --subject "${progname}: FAILED" "${mail}" "$(
+            printf "+---Trace-----------------------------\\n"
+            printf "%b\\n" "${*}"
+            printf "+-------------------------------------\\n"
+            )" >/dev/null
+        done
+    fi
+    exit 1
+}
+
+_clone()
+{
+    [ -z "${1}" ] && return 1
+    [ -z "${2}" ] && _clone__untarget="${bdir}/$(_basename "${1}")" || _clone__untarget="${2}"
+    _clone__stdout="$(tempfile)"
+
+
+    printf "%s\\n" "cloning: ${1}"
+    if [ -d "${_clone__untarget}" ]; then
+         (cd "${_clone__untarget}" && git pull) > "${_clone__stdout}" 2>&1
+    else
+        git clone --depth=1 "${1}" "${_clone__untarget}" > "${_clone__stdout}" 2>&1
+    fi
+    if [ ! -d "${_clone__untarget}" ]; then
+        _clone__stdoutb="$(cat "${_clone__stdout}")"; rm -rf "${_clone__stdout}"
+        _die "failed to clone ${1} to ${_clone__untarget}\\n" "$(printf "%s\\n" "${_clone__stdoutb}")"
+    fi
+    rm -f "${_clone__stdout}"
+}
+
+_wget()
+{
+    [ -z "${1}" ] && return 1
+    [ -z "${2}" ] && _wget__untarget="${bdir}/$(_basename "${1}")" || _wget__untarget="${2}"
+    _wget__stdout="$(tempfile)"
+
+    printf "%s\\n" "fetching: ${1}"
+    if [ ! -f "${_wget__untarget}" ]; then
+        wget -q "${1}" -O "${_wget__untarget}" > "${_wget__stdout}" 2>&1
+    fi
+    if [ ! -f "${_wget__untarget}" ]; then
+        _wget__stdoutb="$(cat "${_wget__stdout}")"; rm -rf "${_wget__stdout}"
+        _die "failed to fetch ${1} to ${_wget__untarget}\\n" "$(printf "%s\\n" "${_wget__stdoutb}")"
+    fi
+    rm -f "${_wget__stdout}"
+}
+
+_untar()
+{
+    [ -z "${1}" ] && return 1
+    [ -z "${2}" ] && _untar__target="${bdir}/$(_basename "${1}")" || _untar__target="${2}"
+    _untar__stdout="$(tempfile)"
+
+    if [ ! -d "${_untar__target}" ]; then
+        (cd "$(dirname "${_untar__target}")" && tar xf "${1}") > "${_untar__stdout}" 2>&1
+    fi
+    if [ ! -d "${_untar__target}" ]; then
+        _untar__stdoutb="$(cat "${_untar__stdout}")"; rm -rf "${_untar__stdout}"
+        _die "failed to untar ${1} to ${_untar__target}\\n" "$(printf "%s\\n" "${_untar__stdoutb}")"
+    fi
+    rm -f "${_untar__stdout}"
+}
+
+_cp()
+{
+    [ -z "${1}" ] && return 1
+    [ -z "${2}" ] && _cp_target="${bdir}/$(_basename "${1}")" || _cp_target="${2}"
+    _cp__stdout="$(tempfile)"
+
+    if [ ! -d "${_cp_target}" ]; then
+        cp -rp "${1}" "${_cp_target}" > "${_cp__stdout}" 2>&1
+    fi
+    if [ ! -d "${_cp_target}" ] && [ ! -f "${_cp_target}" ]; then
+        _cp__stdoutb="$(cat "${_cp__stdout}")"; rm -rf "${_cp__stdout}"
+        _die "failed to cp ${1} to ${_cp_target}\\n" "$(printf "%s\\n" "${_cp__stdoutb}")"
+    fi
+    rm -f "${_cp__stdout}"
+}
+
+_install_bifrost_pkg()
+{
+    cd "${bdir}/morpheus-build/"
+    for _install_bifrost_pkg__pkg; do
+        printf "%s\\n" "installing base: ${_install_bifrost_pkg__pkg}"
+        ./chroot-i486-install.sh "${_install_bifrost_pkg__pkg}" >/dev/null || \
+        _die "failed to install ${_install_bifrost_pkg__pkg} in the init environment"
+    done
+}
+
+_repackage()
+{
+    [ -z "${2}" ] && return 1
+    _repackage__bname="$(_basename "${1}" .tar.gz)"
+    _repackage__dname="/tmp/"${progname}".repackage"
+    _repackage_init()
+    {
+        mkdir -p "${_repackage__dname}"
+        [ -d "${_repackage__dname}/${_repackage__bname}" ] && return 0
+        (cd  "${_repackage__dname}" && mkdir "${_repackage__bname}" && tar xf "${1}" -C "${_repackage__bname}")
+    }
+    case "${2}" in
+        bz2) [ -f "${_repackage__dname}/${_repackage__bname}.tar.bz2" ] && return 0
+            _repackage_init "${1}"
+            (cd  "${_repackage__dname}" && tar -C "${_repackage__bname}" -jcf "${_repackage__bname}".tar.bz2 .)
+            cp "${_repackage__dname}/${_repackage__bname}.tar.bz2" .
+            ;;
+         xz) [ -f "${_repackage__dname}/${_repackage__bname}.tar.xz" ]  && return 0
+            _repackage_init "${1}"
+            (cd  "${_repackage__dname}" && tar -C "${_repackage__bname}" -Jcf "${_repackage__bname}".tar.xz .)
+            cp "${_repackage__dname}/${_repackage__bname}.tar.xz"  .
+            ;;
+          *) rm -rf "${_repackage__dname}" ;;
+    esac
+}
+
+progname="$(_basename ${0})"
+nonroot_user="$(getent passwd | awk -F: '{if ($3 >= 1000 && $3 < 60000) print $1}'|head -1)"
+
+if ! command -v "git" >/dev/null; then
+    _die "you need to install 'git' to run this program"
+fi
+
+[ X"${LOGNAME}" != X"root" ] && _die "this program can only be run by root (because of chroot), exiting."
+
+exec 9>/tmp/"${progname}".lock #verify that only one instance is running
+if ! flock -n 9; then          #http://mywiki.wooledge.org/BashFAQ/045
+    _die "${progname}: another instance is running";
+fi
+
+#get sources
+_clone git://github.com/minos-org/morpheus-base        "${bdir}/morpheus-build/morpheus-base"
+_clone git://github.com/minos-org/morpheus-scripts     "${bdir}/morpheus-build/morpheus-scripts"
+_clone git://github.com/minos-org/morpheus-ports       "${bdir}/morpheus-build/morpheus-ports"
+_clone git://github.com/minos-org/morpheus-ports-delta "${bdir}/morpheus-build/morpheus-ports-delta"
+_clone git://github.com/minos-org/morpheus-mkbuild     "${bdir}/morpheus-build/morpheus-mkbuild"
+_clone git://github.com/minos-org/bifrost-build        "${bdir}/morpheus-build/bifrost-build"
+"${bdir}"/morpheus-build/bifrost-build/wget-finder mini-native-i586.tar.bz2:e812185082e4ab30b3799c19e5b8fb50 \
+    -O "${bdir}"/morpheus-build/mini-native-i586.tar.bz2 >/dev/null || \
+    _die "failed to fetch mini-native-i586.tar.bz2"
+_wget https://e82b27f594c813a5a4ea5b07b06f16c3777c3b8c.googledrive.com/host/0BwnS5DMB0YQ6bDhPZkpOYVFhbk0/musl-1.1.6/crossx86-i486-linux-musl-1.1.6.tar.xz \
+      "${bdir}"/morpheus-build/crossx86-i486-linux-musl-1.1.6.tar.xz
+
+#setup base environment
+_untar "${bdir}"/morpheus-build/mini-native-i586.tar.bz2 "${bdir}/morpheus-build/mini-native-i586/"
+mkdir -p "${bdir}/morpheus-build/mini-native-i586/opt/"
+_untar "${bdir}"/morpheus-build/crossx86-i486-linux-musl-1.1.6.tar.xz "${bdir}/morpheus-build/mini-native-i586/opt/i486-linux-musl"
+
+#setup bifrost-build, required to install needed packages still not present in morpheus
+_cp "${bdir}/morpheus-build/bifrost-build/util/chroot-i486.sh"         "${bdir}/morpheus-build/chroot-i486.sh"
+_cp "${bdir}/morpheus-build/bifrost-build/util/chroot-i486-install.sh" "${bdir}/morpheus-build/chroot-i486-install.sh"
+_cp "${bdir}/morpheus-build/bifrost-build/util/env-setup.sh"           "${bdir}/morpheus-build/mini-native-i586/bin/env-setup.sh"
+_cp "${bdir}/morpheus-build/bifrost-build/util/env-build.sh"           "${bdir}/morpheus-build/mini-native-i586/bin/env-build.sh"
+_cp "${bdir}/morpheus-build/bifrost-build/util/env-install.sh"         "${bdir}/morpheus-build/mini-native-i586/bin/env-install.sh"
+_cp "${bdir}/morpheus-build/bifrost-build/util/env-hooks.sh"           "${bdir}/morpheus-build/mini-native-i586/bin/env-hooks.sh"
+mkdir -p "${bdir}/morpheus-build/mini-native-i586/var/lib"
+#or rsync -aW --no-compress --delete?
+rm -rf "${bdir}/morpheus-build/mini-native-i586/var/lib/build"
+_cp    "${bdir}/morpheus-build/bifrost-build" "${bdir}/morpheus-build/mini-native-i586/var/lib/build"
+
+#setup morpheus base
+(cd "${bdir}/morpheus-build/" && rm -rf morpheus         && _cp morpheus-base        morpheus)
+(cd "${bdir}/morpheus-build/" && rm -rf morpheus/ports   && _cp morpheus-ports       morpheus/ports)
+(cd "${bdir}/morpheus-build/" && rm -rf morpheus/delta   && _cp morpheus-ports-delta morpheus/ports-delta)
+(cd "${bdir}/morpheus-build/" && rm -rf morpheus/mkbuild && _cp morpheus-mkbuild     morpheus/mkbuild)
+
+#apply patches
+for delta_patch in "${bdir}"/morpheus-build/morpheus/ports-delta/patches/*.patch; do
+    [ -f "${delta_patch}" ] || continue
+    _patch_outout="$(tempfile)"
+    basename_delta_patch="$(_basename "${delta_patch}" .patch)"
+    printf "%s\\n" "applying patch to: ${basename_delta_patch}"
+    (cd "${bdir}"/morpheus-build/morpheus/ports/"${basename_delta_patch}" &&
+    patch < "${delta_patch}") > "${_patch_outout}" 2>&1 ||
+    _warning "${basename_delta_patch} patch failed" "\\n$(tail -100 "${_patch_outout}")"
+    rm -rf "${_patch_outout}"
+done
+
+#setup morpheus
+printf "%s\\n" "creating reference ..."
+rm -rf "${bdir}/morpheus-build/mini-native-i586/var/lib/morpheus.ports.reference"
+cp -r  "${bdir}/morpheus-build/mini-native-i586/var/lib/morpheus/ports" "${bdir}/morpheus-build/mini-native-i586/var/lib/morpheus.ports.reference" 2>/dev/null
+
+rm -rf   "${bdir}/morpheus-build/mini-native-i586/var/lib/morpheus"
+mv       "${bdir}/morpheus-build/morpheus" "${bdir}/morpheus-build/mini-native-i586/var/lib/morpheus"
+mkdir -p "${bdir}/morpheus-build/mini-native-i586/etc/build/"
+mkdir -p "${bdir}/morpheus-build/mini-native-i586/var/spool/morpheus-pkgs/"
+_cp "${bdir}/morpheus-build/morpheus-scripts/chroot-morpheus-i486-build.sh" "${bdir}/morpheus-build/chroot-morpheus-i486-build.sh"
+_cp "${bdir}/morpheus-build/morpheus-scripts/env-morpheus-build.sh" "${bdir}/morpheus-build/mini-native-i586/bin/env-morpheus-build.sh"
+_cp "${bdir}/morpheus-build/morpheus-scripts/morpheus-pkg"          "${bdir}/morpheus-build/mini-native-i586/bin/morpheus-pkg"
+_cp "${bdir}/morpheus-build/morpheus-scripts/env-musl-morpheus.sh"  "${bdir}/morpheus-build/mini-native-i586/etc/build/env-musl-morpheus.sh"
+_cp "${bdir}/morpheus-build/morpheus-scripts/env-mk-morpheus.sh"    "${bdir}/morpheus-build/mini-native-i586/etc/build/env-mk-morpheus.sh"
+
+#init build environment
+(cd "${bdir}/morpheus-build/mini-native-i586/var/lib/morpheus/" && _cp config.def.mk config.mk)
+sed -i "s:x86_64:i486:g"   "${bdir}/morpheus-build/mini-native-i586/var/lib/morpheus/config.mk"
+sed -i "s:fakeroot -- ::g" "${bdir}/morpheus-build/mini-native-i586/var/lib/morpheus/mkbuild/mk.package"
+
+#setup morpheus build dependencies
+#TODO 28-05-2015 07:11 >> remove as many dependencies as possible by creating more morpheus packages
+#required for virtually all packages
+_install_bifrost_pkg "tar-1.23-1" "passwd-file-1" "mk-20140306-1" "coreutils-7.6-5" "wget-1.15-2"
+_install_bifrost_pkg "openssl-1.0.1m-1"
+#printf "%s\\n" "check_certificate = off" > "${bdir}/morpheus-build/mini-native-i586/etc/wgetrc"
+
+#required for bison,ca-certificates,libcap,cgit,zlib,diffutils,syslinux,gawk,iproute,libass,libav
+#libpng,libquvi,libquviscripts,libsigcpp,pcre,quvi,shadow,strace,unifdef,util-linux,crossx86-x86_64
+_install_bifrost_pkg "xz-5.0.3-1"
+
+#required for abduco,cwm,dmenu,dvtm,dwm,hbase,ii,linux-firmware,meh,mg,nbwmon,ns-tools,pkgtools
+#quark,sandy,sbase,scron,sdhcp,sinit,smdev,st,ubase
+_install_bifrost_pkg "git-1.8.2.1-2"
+
+#required for xorglibx11,xorglibxft,xorglibxinerama,xorglibxkbfile,xorglibxrandr,xorglibxrender
+#xorglibxv,xorgprotoall,xorgxcbproto,xorgxinit,xorgxkbcomp,xorglibxcb,xorglibxext,xorgmkfontscale
+_install_bifrost_pkg "Python-2.7-3"
+
+_install_bifrost_pkg "flex-2.5.35-1"     # required for bc
+_install_bifrost_pkg "perl-5.10.1-3"     # required for rsync
+_install_bifrost_pkg "file-5.04-1"       # required for file lol
+_install_bifrost_pkg "pkg-config-0.23-1" # required for libass
+_install_bifrost_pkg "sed-4.2.1-1"       # required for libquvi,quvi
+_install_bifrost_pkg "m4-1.4.17-1"       # required for libsigcpp
+_install_bifrost_pkg "bison-2.4.2-1"     # required for libnl3
+
+#build packages
+for recipe in "${bdir}"/morpheus-build/mini-native-i586/var/lib/morpheus/ports/*; do
+    [ ! -d "${recipe}" ] && continue
+    brecipe="$(_basename "${recipe}")"
+    case "${brecipe}" in #skip metapackages linux and xorg(broken) packages to save cpu cycles
+        *stage0*|linux|xorg*) continue ;;
+    esac
+    #build only updated recipes
+    if ! diff -rq -x '.*' "${recipe}" "${bdir}/morpheus-build/mini-native-i586/var/lib/morpheus.ports.reference/${brecipe}" >/dev/null 2>&1; then
+        printf "%s\\n" "building ${brecipe} ..."; _recipe__stdout="$(tempfile)"
+        (cd "${bdir}/morpheus-build/" && ./chroot-morpheus-i486-build.sh "${brecipe}" > "${_recipe__stdout}" 2>&1)
+        if [ -f "${recipe}"/"${brecipe}"*.pkg.tgz ]; then
+            cp "${recipe}"/"${brecipe}"*.pkg.tgz "${bdir}"/morpheus-build/mini-native-i586/var/spool/morpheus-pkgs/
+            [ -d "${bdir}/morpheus-build/morpheus-ports-delta/broken/${brecipe}" ] &&
+            _warning "${brecipe} seems no longer broken" "\\n$(tail -100 "${_recipe__stdout}")"
+        else
+            [ -d "${bdir}/morpheus-build/morpheus-ports-delta/broken/${brecipe}" ] ||
+            _warning "${brecipe} failed to build" "\\n$(tail -100 "${_recipe__stdout}")"
+        fi
+        rm -rf "${_recipe__stdout}"
+    fi
+done
+
+umount "${bdir}"/morpheus-build/mini-native-i586/proc "${bdir}"/morpheus-build/mini-native-i586/sys 2>/dev/null
+[ ! -d "${bdir}"/morpheus/i686 ] && mkdir -p "${bdir}"/morpheus/i686
+
+#repack them in bz2 and xz archives
+printf "%s\\n" "creating archives ..."; _recipe__stdout="$(tempfile)"
+mkdir -p "${bdir}"/morpheus-build/repackage-i686
+for archive in "${bdir}"/morpheus-build/mini-native-i586/var/spool/morpheus-pkgs/*.pkg.tgz; do
+    [ ! -f "${archive}" ] && continue
+    barchive="$(_basename "${archive}" .pkg.tgz)"; barchive="$(_strreplace "${barchive}" "#" "-")"
+    _cp "${archive}" "${bdir}"/morpheus-build/repackage-i686/"${barchive}".tar.gz
+    #process only updated packages
+    hash_orig="$(shasum -a 512 "${bdir}/morpheus/i686/${barchive}".tar.gz 2>/dev/null|awk '{print $1}')"
+    hash_new="$( shasum -a 512 "${bdir}/morpheus-build/repackage-i686/${barchive}".tar.gz 2>/dev/null|awk '{print $1}')"
+    [ X"${hash_new}" = X"${hash_orig}" ] && continue
+    (
+    cd "${bdir}"/morpheus-build/repackage-i686
+    _repackage "${bdir}"/morpheus-build/repackage-i686/"${barchive}".tar.gz bz2
+    _repackage "${bdir}"/morpheus-build/repackage-i686/"${barchive}".tar.gz xz
+    _repackage "${bdir}"/morpheus-build/repackage-i686/"${barchive}".tar.gz cleanup
+    )
+done
+
+#move packages
+printf "%s\\n" "moving archives ...";
+for archive in "${bdir}"/morpheus-build/repackage-i686/*.tar.gz  \
+               "${bdir}"/morpheus-build/repackage-i686/*.tar.bz2 \
+               "${bdir}"/morpheus-build/repackage-i686/*.tar.xz; do
+    [ ! -f "${archive}" ] && continue
+    mv "${archive}" "${bdir}"/morpheus/i686/
+done
+
+#create index
+(cd "${bdir}"/morpheus/i686/ && rm -rf sha512sum.* md5sum.*)
+(cd "${bdir}"/morpheus/i686/ && shasum -a 512 *tar* > sha512sum.txt 2>/dev/null)
+(cd "${bdir}"/morpheus/i686/ && md5sum *tar* > md5sum.txt 2>/dev/null)
+[ X"$(ls "${bdir}"/morpheus/i686/*tar*|wc -l)" = X"$(wc -l "${bdir}"/morpheus/i686/sha512sum.txt|awk '{print $1}')" ] || \
+    _die "Package entries don't match total archives\\n"     \
+    "sha512 entries:$(wc -l "${bdir}"/morpheus/i686/sha512sum.txt)\\n" \
+    "archives      :$(ls "${bdir}"/morpheus/i686/*tar*|wc -l)"
+
+(cd "${bdir}"/morpheus/i686/ && tar -zcf sha512sum.tar.gz sha512sum.txt)
+(cd "${bdir}"/morpheus/i686/ && tar -jcf sha512sum.tar.bz2 sha512sum.txt)
+(cd "${bdir}"/morpheus/i686/ && tar -Jcf sha512sum.tar.xz  sha512sum.txt)
+(cd "${bdir}"/morpheus/i686/ && tar -zcf md5sum.tar.gz md5sum.txt)
+(cd "${bdir}"/morpheus/i686/ && tar -jcf md5sum.tar.bz2 md5sum.txt)
+(cd "${bdir}"/morpheus/i686/ && tar -Jcf md5sum.tar.xz  md5sum.txt)
+
+#use x86 binaries for x64, x64 binaries could be produced in the future when more hardware resources are available
+[ -d "${bdir}"/morpheus/x86_64 ] && rm -rf "${bdir}"/morpheus/x86_64/* || mkdir -p "${bdir}"/morpheus/x86_64
+ln -s "${bdir}"/morpheus/i686/* "${bdir}"/morpheus/x86_64/
+
+chown -R "${nonroot_user}:${nonroot_user}" "${bdir}"/morpheus/
