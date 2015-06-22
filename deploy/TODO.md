@@ -1,0 +1,1 @@
+- deploy ipfs node

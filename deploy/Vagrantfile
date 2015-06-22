@@ -1,0 +1,43 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+hosts = {
+    "s" => "192.168.100.101",
+    "t" => "192.168.100.102",
+}
+
+$enable_root_passwordless_ssh_access = <<SCRIPT
+[ -d /root ]      || sudo mkdir /root
+[ -d /root/.shh ] || sudo mkdir /root/.ssh
+[ -f /tmp/id_rsa.pub ] && sudo mv /tmp/id_rsa.pub /root/.ssh/authorized_keys
+sudo chmod 0700 /root/.ssh
+sudo chmod 0600 /root/.ssh/authorized_keys
+sudo chown root:root /root/.ssh/authorized_keys
+SCRIPT
+
+Vagrant.configure("2") do |config|
+  hosts.each do |name, ip|
+    config.vm.define name do |machine|
+      machine.vm.box = "precise32"
+      machine.vm.box_url = "http://files.vagrantup.com/precise32.box"
+      machine.vm.hostname = "%s.minos.io" % name
+      machine.vm.network :private_network, ip: ip
+
+      machine.vm.provision "file",  source: "~/.ssh/id_rsa.pub", destination: "/tmp/id_rsa.pub"
+      machine.vm.provision "shell", inline: $enable_root_passwordless_ssh_access
+
+      machine.vm.provider "virtualbox" do |v|
+          v.name = name
+          if v.name == "s"
+            v.customize ["modifyvm", :id, "--memory", 100]
+          #elsif v.name == "foo"
+            #v.customize ["modifyvm", :id, "--memory", 250]
+          #elsif v.name == "bar"
+            #v.customize ["modifyvm", :id, "--memory", 500]
+          #elsif v.name == "foobar"
+            #v.customize ["modifyvm", :id, "--memory", 1024]
+          end
+      end
+    end
+  end
+end

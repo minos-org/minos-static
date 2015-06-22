@@ -2,10 +2,10 @@
 
 Linux static linking is hard, in most cases `-static` won't suffice, and you'll end installing (or building) a static toolchain to compile and link statically all the dependencies of your target program (and the program itself).
 
-There exist several projects who aim to fix this by providing easy to follow recipes, there is however still the need to compile a lot of code, this repository provides meta-recipes for building all available packages and publish them to http://s.minos.io , so the process can be reduced to:
+There exist several projects who aim to fix this by providing easy to follow recipes, there is however still the need to compile a lot of code, this repository define meta-recipes for building all available packages and publish them to http://s.minos.io , so the process can be reduced to:
 
 ```
-$ get-static git
+$ static-get git
 git-version.tar.gz
 ```
 
@@ -25,7 +25,6 @@ New and non functional recipes should be reported to upstream projects.
 
 If you're not interested in building all the recipes in your infraestructure and prefer to mirror frecuently http://s.minos.io, please use one of the following methods:
 
-- rsync
-- ipfs
+- `rsync -azvL --delete rsync://s.minos.io/mirror/ /usr/local/linux-static-mirror`
 
 The recipes are run by [minos-sync-bot](https://github.com/minos-sync-bot) and sync once every day.

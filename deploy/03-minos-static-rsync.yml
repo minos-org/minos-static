@@ -1,0 +1,36 @@
+- hosts: minos-static
+  vars:
+    - domain:    s.minos.io
+    - wwwroot:   /var/www/s.minos.io/
+
+  # only update if the cache hasn't been modified since the last 12 hours.
+  pre_tasks:
+    - name: Update apt cache
+      apt:  update_cache=yes cache_valid_time=43200
+
+  tasks:
+   - name: Install rsync
+     apt: pkg=rsync state=installed install_recommends=no
+
+   - name: Add base rsync configuration
+     template: src=files/etc.rsyncd.conf dest=/etc/rsyncd.conf owner=root group=root
+     notify:
+      - Reload rsync
+
+   - name: Enable rsync daemon mode
+     lineinfile: dest=/etc/default/rsync regexp=^RSYNC_ENABLE= line=RSYNC_ENABLE=true
+     notify:
+      - Reload rsync
+
+   - name: Stop rsync daemon
+     command: service rsync stop
+
+   - name: Start rsync daemon
+     command: service rsync start
+
+  handlers:
+   - name: Start rsync
+     service: name=rsync state=started
+
+   - name: Reload rsync
+     service: name=rsync state=reloaded
