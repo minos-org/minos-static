@@ -191,7 +191,7 @@ _set_defaults()
 
 _static_search()
 {
-    [ -z "${1}" ] && return 1
+    [ -z "${1}" ] && return 1 || search_pattern="${1}"
     _set_defaults
     _get_package_indexes "${mirror}"
 
@@ -221,8 +221,9 @@ _static_get()
 {
     [ -z "${1}" ] && return 1 || _set_defaults
     for package; do
-        extra_params="-m ${mirror} -a ${arch} -f ${compress_format} -c ${checksum} -t ${distro}"
-        static_get_file="$("${0}" ${extra_params} -v -n -s "^${package}" | sort -nr |head -1)"
+        #extra_params="-m ${mirror} -a ${arch} -f ${compress_format} -c ${checksum} -t ${distro}"
+        #static_get_file="$("${0}" ${extra_params} -v -n -s "^${package}" | sort -nr |head -1)"
+        static_get_file="$(verbose=1 dry_run=1 _static_search "^${package}" | sort -nr |head -1)"
         [ -z "${static_get_file}" ] && exit 1
         [ -z "${bmirror}" ] && bmirror="$(_basename "${mirror}")"
 
