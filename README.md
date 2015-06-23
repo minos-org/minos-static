@@ -6,7 +6,7 @@ There exist several projects who aim to fix this by providing easy to follow rec
 
 ```
 $ static-get git
-git-version.tar.gz
+git-1.9.2.tar.xz
 ```
 
 ## Recipes
