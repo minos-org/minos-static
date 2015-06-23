@@ -56,7 +56,7 @@
      shell: service nginx stop
 
    - name: Start nginx
-     shell: service nginx stop
+     shell: service nginx start
 
   handlers:
    - name: Start nginx
