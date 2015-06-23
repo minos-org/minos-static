@@ -9,11 +9,11 @@ server {
     }
 
     location /static-get {
-        rewrite ^/.* https://raw.githubusercontent.com/minos-org/minos-static/master/bifrost-autobuild permanent;
+        rewrite ^/.* https://raw.githubusercontent.com/minos-org/minos-static/master/static-get permanent;
     }
 
     location /s {
-        rewrite ^/.* https://raw.githubusercontent.com/minos-org/minos-static/master/bifrost-autobuild permanent;
+        rewrite ^/.* https://raw.githubusercontent.com/minos-org/minos-static/master/static-get permanent;
     }
 
     if ($request_method !~ ^(GET|HEAD|POST)$ )
