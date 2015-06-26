@@ -52,6 +52,9 @@
         - morpheus
         - misc
 
+   - name: Add robot.txt file
+     template: src=files/robots.txt dest={{ wwwroot }}/robots.txt owner=www-data group=www-data
+
    - name: Stop nginx
      shell: service nginx stop
 
