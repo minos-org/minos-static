@@ -168,6 +168,7 @@ done
 
 umount "${bdir}"/bifrost-build/mini-native-i586/proc "${bdir}"/bifrost-build/mini-native-i586/sys 2>/dev/null
 [ ! -d "${bdir}"/bifrost/i686 ] && mkdir -p "${bdir}"/bifrost/i686
+[ ! -f "${bdir}"/bifrost/lock ] && touch "${bdir}"/bifrost/lock
 
 #copy packages
 printf "%s\\n" "creating archives ..."; _recipe__stdout="$(tempfile)"
@@ -206,3 +207,4 @@ done
 ln -s "${bdir}"/bifrost/i686/* "${bdir}"/bifrost/x86_64/
 
 chown -R "${nonroot_user}:${nonroot_user}" "${bdir}"/bifrost/
+rm "${bdir}"/bifrost/lock

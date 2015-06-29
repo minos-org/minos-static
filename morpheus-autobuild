@@ -5,6 +5,9 @@ bdir="$(cd "$(dirname "${0}")" && pwd)"
 alert_mails="m#%#javier.io"
 PS4="> "
 
+#crontab jobs run in a very sparse environment
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin"
+
 _basename()
 {
     [ -z "${1}" ] && return 1 || _basename__name="${1}"
@@ -145,10 +148,13 @@ _cp()
 _install_bifrost_pkg()
 {
     cd "${bdir}/morpheus-build/"
+    _ibpkg__stdout="$(tempfile)"
     for _install_bifrost_pkg__pkg; do
         printf "%s\\n" "installing base: ${_install_bifrost_pkg__pkg}"
-        ./chroot-i486-install.sh "${_install_bifrost_pkg__pkg}" >/dev/null || \
-        _die "failed to install ${_install_bifrost_pkg__pkg} in the init environment"
+        ./chroot-i486-install.sh "${_install_bifrost_pkg__pkg}" > "${_ibpkg__stdout}" 2>&1 || {
+        _ibpkg__stdoutb="$(cat "${_ibpkg__stdout}")"; rm -rf "${_ibpkg__stdout}"
+        _die "failed to install ${_install_bifrost_pkg__pkg} in the init environment\\n" "$(printf "%s\\n" "${_cp__stdoutb}")"
+        }
     done
 }
 
@@ -185,7 +191,7 @@ if ! command -v "git" >/dev/null; then
     _die "you need to install 'git' to run this program"
 fi
 
-[ X"${LOGNAME}" != X"root" ] && _die "this program can only be run by root (because of chroot), exiting."
+[ X"$(whoami)" != X"root" ] && _die "this program can only be run by root (because of chroot), exiting."
 
 exec 9>/tmp/"${progname}".lock #verify that only one instance is running
 if ! flock -n 9; then          #http://mywiki.wooledge.org/BashFAQ/045
@@ -312,6 +318,7 @@ done
 
 umount "${bdir}"/morpheus-build/mini-native-i586/proc "${bdir}"/morpheus-build/mini-native-i586/sys 2>/dev/null
 [ ! -d "${bdir}"/morpheus/i686 ] && mkdir -p "${bdir}"/morpheus/i686
+[ ! -f "${bdir}"/morpheus/lock ] && touch "${bdir}"/morpheus/lock
 
 #repack them in bz2 and xz archives
 printf "%s\\n" "creating archives ..."; _recipe__stdout="$(tempfile)"
@@ -362,3 +369,4 @@ done
 ln -s "${bdir}"/morpheus/i686/* "${bdir}"/morpheus/x86_64/
 
 chown -R "${nonroot_user}:${nonroot_user}" "${bdir}"/morpheus/
+rm "${bdir}"/morpheus/lock

@@ -206,6 +206,8 @@ for recipe in "${bdir}"/misc-autosync-resources/*; do
     esac
 done
 
+[ ! -f "${bdir}"/misc/lock ] && touch "${bdir}"/misc/lock
+
 #move packages
 printf "%s\\n" "moving archives ...";
 for archive in "${bdir}"/misc-build/i686/*.tar.gz "${bdir}"/misc-build/i686/*.tar.bz2 "${bdir}"/misc-build/i686/*.tar.xz; do
@@ -254,3 +256,4 @@ printf "%s\\n" "creating index ...";
 (cd "${bdir}"/misc/x86_64/ && tar -Jcf md5sum.tar.xz  md5sum.txt)
 
 chown -R "${nonroot_user}:${nonroot_user}" "${bdir}"/misc/
+rm "${bdir}"/misc/lock
