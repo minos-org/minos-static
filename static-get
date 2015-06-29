@@ -1,0 +1,365 @@
+#!/bin/sh
+#description: get static linux binaries from s.minos.io and mirrors
+#usage: static-get package
+
+#example: static-get git
+#git-1.8.2.1-3.tar.gz:sha512sum
+
+_usage()
+{
+    printf "%b\\n" "Usage: ${progname} [OPTION]... PACKAGE ..." >&2
+    printf "%b\\n" "Retrieve static linux binaries from s.minos.io and mirrors." >&2
+    printf "\\n" >&2
+    printf "%b\\n" "  -d, --download [dir]        save to the specified directory" >&2
+    printf "%b\\n" "  -s, --search [pattern]      search packages by pattern" >&2
+    printf "%b\\n" "  -x, --extract               extract after download" >&2
+    printf "%b\\n" "  -n, --dry-run               perform a trial run with no changes made" >&2
+    printf "%b\\n" "  -l, --clean-cache           remove temporal files" >&2
+    printf "\\n" >&2
+    printf "%b\\n" "  -m, --mirror [s.minos.io]   set mirror" >&2
+    printf "%b\\n" "  -a, --arch [x86_64|i686]    set architecture" >&2
+    printf "%b\\n" "  -f, --format [gz|bz2|xz]    set compress format" >&2
+    printf "%b\\n" "  -c, --checksum [sha512|md5] set checksum" >&2
+    printf "%b\\n" "  -t, --distro [all|bifrost|morpheus|misc] set distro" >&2
+    printf "\\n" >&2
+    printf "%b\\n" "  -v, --verbose               turn on verbose mode" >&2
+    printf "%b\\n" "  -q, --quiet                 suppress non-error messages" >&2
+    printf "%b\\n" "  -h, --help                  show this message and exit" >&2
+    exit 1
+}
+
+_basename()
+{
+    [ -z "${1}" ] && return 1 || _basename__name="${1}"
+    [ -z "${2}" ] || _basename__suffix="${2}"
+    case "${_basename__name}" in
+        /*|*/*) _basename__name="${_basename__name##*/}"
+    esac
+
+    if [ -n "${_basename__suffix}" ] && [ "${#_basename__name}" -gt "${#2}" ]; then
+        _basename__name="${_basename__name%$_basename__suffix}"
+    fi
+
+    printf "%s" "${_basename__name}"
+}
+
+_verbose()
+{
+    [ -z "${1}" ] && return 1
+    [ -n "${verbose}" ] && printf "%s\\n" "${*}" || :
+}
+
+_normal_msg()
+{
+    [ -z "${1}" ] && return 1
+    [ -n "${quiet}" ] || printf "%s\\n" "${*}"
+}
+
+_cat()
+{
+    [ -z "${1}" ] && return 1
+    [ -z "${global_output}" ] && output="$(_basename "${1}")"
+    [ -z "${quiet}" ] && printf "%s\\n" "${output}"
+    if [ -z "${global_output}" ]; then
+        cat "${1}" >  "${output}"
+    else
+        cat "${1}" >> "${output}"
+    fi
+}
+
+_get_available_distros()
+{   #$1 => mirror, eg: s.minos.io
+    [ -z "${1}" ] && return 1
+    bmirror="$(_basename "${1}")"
+    [ -d /tmp/"${progname}.${bmirror}" ] || mkdir /tmp/"${progname}.${bmirror}"
+    if [ ! -f /tmp/"${progname}.${bmirror}/index.html" ]; then
+        cd /tmp/"${progname}.${bmirror}"
+        case "${retriever_bin}" in
+            *curl*) curl -o index.html "${bmirror}" >/dev/null 2>&1 ;;
+            *) $retriever_bin "${bmirror}" >/dev/null 2>&1 ;;
+        esac
+    fi
+    awk  -F'"' '/href/ {if ($2 != "../") print $2}' /tmp/"${progname}.${bmirror}/index.html" 2>/dev/null
+}
+
+_get_available_archs()
+{   #$1 => mirror, eg: s.minos.io
+    #$2 => distro, eg: bifrost
+    [ -z "${2}" ] && return 1
+    [ -d /tmp/"${progname}.${1}" ] || mkdir /tmp/"${progname}.${1}"
+    [ -d /tmp/"${progname}.${1}/${2}" ] || mkdir /tmp/"${progname}.${1}/${2}"
+
+    if [ ! -f /tmp/"${progname}.${1}/${2}/index.html" ]; then
+        cd /tmp/"${progname}.${1}/${2}"
+        case "${retriever_bin}" in
+            *curl*) curl -o index.html "${1}/${2}" >/dev/null 2>&1 ;;
+            *) $retriever_bin "${1}/${2}" >/dev/null 2>&1 ;;
+        esac
+    fi
+    awk  -F'"' '/href/ {if ($2 != "../") print $2}' /tmp/"${progname}.${1}/${2}/index.html" 2>/dev/null
+}
+
+_get_package_indexes()
+{   #$1 => mirror, eg: s.minos.io
+    [ -z "${1}" ] && return 1
+    [ -z "${available_distros}" ] && available_distros="$(_get_available_distros "${1}")"
+    for gdistro in ${available_distros}; do
+        available_arch="$(_get_available_archs "${1}" "${gdistro}")"
+        for garch in ${available_arch}; do
+            [ -d /tmp/"${progname}.${1}" ]      || mkdir /tmp/"${progname}.${1}"
+            [ -d /tmp/"${progname}.${1}/${gdistro}" ] || mkdir /tmp/"${progname}.${1}/${gdistro}"
+            [ -d /tmp/"${progname}.${1}/${gdistro}/${garch}" ] || mkdir /tmp/"${progname}.${1}/${gdistro}/${garch}"
+            cd /tmp/"${progname}.${1}/${gdistro}/${garch}"
+            if [ ! -f /tmp/"${progname}.${1}/${gdistro}/${garch}/${checksum}sum.txt" ]; then
+                $retriever_bin "${1}/${gdistro}/${garch}/${checksum}sum.tar.${compress_format}" >/dev/null 2>&1
+                ${compress_bin} < "${checksum}sum.tar.${compress_format}" | tar xf -
+            fi
+        done
+    done
+}
+
+_set_defaults()
+{
+    [ -z "${mirror}" ]    && mirror="s.minos.io"
+    [ -z "${distro}" ]    && distro="all"
+    [ -z "${arch}" ]      && arch="$(uname -m)"
+    [ -z "${directory}" ] && directory="."
+    if [ -z "${dry_run}" ]; then
+        mkdir -p "${directory}" || { printf "%s\\n" "unable to create ${directory}, exiting"; exit 1; }
+    fi
+    case "${arch}" in
+        x86|386|486|586|i86|32) arch="i686" ;;
+        amd64|64) arch="x86_64" ;;
+        i686|x86_64) ;;
+        *) _verbose "$arch is not a valid architecture, using system default: $(uname -m)"
+           arch="$(uname -m)" ;;
+    esac
+
+    case "${compress_format}" in
+        gz)  compress_bin="zcat"  ;;
+        bz2) compress_bin="bzcat" ;;
+        xz)  compress_bin="xzcat"    ;;
+        *)   if command -v "xzcat" >/dev/null 2>&1; then
+                 compress_format="xz"
+                 compress_bin="xzcat"
+             elif command -v "bzcat" >/dev/null 2>&1; then
+                 compress_format="bz2"
+                 compress_bin="bzcat"
+             elif command -v "zcat" >/dev/null 2>&1; then
+                 compress_format="gz"
+                 compress_bin="zcat"
+             else
+                printf "%s\\n" "install either 'gzip', 'bzip2' or 'xz' to run this program" >&2
+                exit 1
+             fi
+             ;;
+    esac
+
+    case "${checksum}" in
+        sha512) checksum_bin="shasum -a 512" ;;
+        md5)    checksum_bin="md5sum" ;;
+        *)      if command -v "shasum" >/dev/null 2>&1; then
+                    checksum="sha512"
+                    checksum_bin="shasum -a 512"
+                elif command -v "md5sum" >/dev/null 2>&1; then
+                    checksum="md5"
+                    checksum_bin="md5sum"
+                else
+                    printf "%s\\n" "install either 'md5sum' or 'shasum' to run this program" >&2
+                    exit 1
+                fi
+                ;;
+    esac
+
+    if command -v "wget" >/dev/null 2>&1; then
+        retriever_bin="wget"
+    elif command -v "curl" >/dev/null 2>&1; then
+        retriever_bin="curl -O"
+    elif command -v "fetch" >/dev/null 2>&1; then
+        retriever_bin="fetch"
+    else
+        printf "%s\\n" "install either 'wget', 'curl' or 'fetch' to run this program" >&2
+        exit 1
+    fi
+
+    available_distros="$(_get_available_distros "${mirror}")"
+    if [ -z "${available_distros}" ]; then
+        printf "%s\\n" "no available packages at $mirror, it may be an incorrect url or could be down temporarily" >&2
+        exit 1
+    fi
+}
+
+_static_search()
+{
+    [ -z "${1}" ] && return 1 || search_pattern="${1}"
+    _set_defaults
+    _get_package_indexes "${mirror}"
+
+    [ -z "${bmirror}" ] && bmirror="$(_basename "${mirror}")"
+    simple_search_pattern="$(printf "%s" "${search_pattern}" | tr -cd '[a-zA-Z]')"
+    [ "${distro}" = "all" ] && distro=""
+
+    _static_search_result="$(find /tmp/static-get."${bmirror}"/ -iname "${checksum}sum.txt" | \
+        grep "${distro}" | xargs grep "${simple_search_pattern}" | \
+        grep "${arch}"   | grep "tar.${compress_format}" | \
+        sed "s:/tmp/static-get.::g;s:/${checksum}sum.txt\:: :g")"
+    if [ "${_static_search_result}" ]; then
+        if [ "${verbose}" ]; then
+            printf "%s\\n" "${_static_search_result}" | \
+            awk '{printf "%s %s %s\n", $3, $2, $1}'   | \
+            grep "${search_pattern}" | awk '{printf "%s:%s:%s\n", $3, $1, $2}'
+        else
+            printf "%s\\n" "${_static_search_result}" | \
+            awk '{printf "%s:%s\n", $3, $2}' | grep "${search_pattern}" | cat
+        fi
+    else
+        return 1
+    fi
+}
+
+_static_get()
+{
+    [ -z "${1}" ] && return 1 || _set_defaults
+    for package; do
+        #extra_params="-m ${mirror} -a ${arch} -f ${compress_format} -c ${checksum} -t ${distro}"
+        #static_get_file="$("${0}" ${extra_params} -v -n -s "^${package}" | sort -nr |head -1)"
+        static_get_file="$(verbose=1 dry_run=1 _static_search "^${package}" | sort -nr |head -1)"
+        [ -z "${static_get_file}" ] && exit 1
+        [ -z "${bmirror}" ] && bmirror="$(_basename "${mirror}")"
+
+        static_get_hash="${static_get_file##*:}"
+        static_get_file="${static_get_file%:$static_get_hash}" #remove hash
+        static_get_file="$(printf "%s" "${static_get_file}" | tr ':' '/')"
+        static_get_bfile="$(_basename "${static_get_file}")"
+
+        for i in 1 2; do
+            if [ "${dry_run}" ]; then
+                printf "%s\\n" "${directory}/${static_get_bfile}" | sed 's:\./::'
+                [ "${extract}" ] && printf "%s\\n" "${directory}/${static_get_bfile%%.tar*}/" | sed 's:\./::'
+                break
+            fi
+            if [ -f /tmp/static-get."${bmirror}/${static_get_bfile}" ]; then
+                static_get_hash_new="$($checksum_bin /tmp/static-get."${bmirror}/${static_get_bfile}" | awk '{print $1}')"
+                if [ "${static_get_hash}" = "${static_get_hash_new}" ]; then
+                    cp /tmp/static-get."${bmirror}/${static_get_bfile}" "${directory}"
+                    printf "%s\\n" "${directory}/${static_get_bfile}" | sed 's:\./::'
+                    if [ "${extract}" ]; then
+                        [ ! -d "${directory}/${static_get_bfile%%.tar*}" ] && mkdir "${directory}/${static_get_bfile%%.tar*}"
+                        (cd "${directory}/${static_get_bfile%%.tar*}" && \
+                        ${compress_bin} < "../${static_get_bfile}"  | tar xf -) && \
+                        printf "%s\\n" "${directory}/${static_get_bfile%%.tar*}/" | sed 's:\./::'
+                    fi
+                    break
+                else
+                    rm -f /tmp/static-get."${bmirror}/${static_get_bfile}"
+                fi
+            else
+                (cd /tmp/static-get."${bmirror}/" && $retriever_bin "${static_get_file}" >/dev/null 2>/dev/null)
+            fi
+        done
+    done
+}
+
+progname="$(_basename "${0}")"
+
+if [ ! -t 0 ]; then
+    #there is input comming from pipe or file, add it to the end of $@
+    set -- "${@}" $(cat)
+fi
+
+[ "${#}" -eq "0" ] && _usage
+
+for arg; do #parse options
+    case "${arg}" in
+        -h|--help)    _usage ;;
+        -q|--quiet)   quiet="1";   shift ;;
+        -v|--verbose) verbose="1"; shift ;;
+        -x|--extract) extract="1"; shift ;;
+        -n|--dry-run) dry_run="1"; shift ;;
+        '-d'|'--download')
+            if [ "${#}" -gt "1" ]; then
+                case "${2}" in
+                    -*) printf "%s\\n" "Option '${arg}' requires a parameter"; _usage ;;
+                esac
+                shift; directory="${1}"; [ "${1}" ] && shift
+            else
+                printf "%s\\n" "Option '${arg}' requires a parameter"; _usage
+            fi ;;
+        -d*) directory="${1#-d}"; shift ;;
+        --download*) directory="${1#--download}"; shift ;;
+        '-s'|'--search')
+            if [ "${#}" -gt "1" ]; then
+                shift; search_pattern="${1}"; [ "${1}" ] && shift
+            else
+                search_pattern="."
+            fi ;;
+        -s*) search_pattern="${1#-s}"; shift ;;
+        --search*) search_pattern="${1#--search}"; shift ;;
+        '-a'|'--arch')
+            if [ "${#}" -gt "1" ]; then
+                case "${2}" in
+                    -*) printf "%s\\n" "Option '${arg}' requires a parameter"; _usage ;;
+                esac
+                shift; arch="${1}"; [ "${1}" ] && shift
+            else
+                printf "%s\\n" "Option '${arg}' requires a parameter"; _usage
+            fi ;;
+        -a*) arch="${1#-a}"; shift ;;
+        --arch*) arch="${1#--arch}"; shift ;;
+        '-m'|'--mirror')
+            if [ "${#}" -gt "1" ]; then
+                case "${2}" in
+                    -*) printf "%s\\n" "Option '${arg}' requires a parameter"; _usage ;;
+                esac
+                shift; mirror="${1}"; [ "${1}" ] && shift
+            else
+                printf "%s\\n" "Option '${arg}' requires a parameter"; _usage
+            fi ;;
+        -m*) mirror="${1#-m}"; shift ;;
+        --mirror*) mirror="${1#--mirror}"; shift ;;
+        '-c'|'--checksum')
+            if [ "${#}" -gt "1" ]; then
+                case "${2}" in
+                    -*) printf "%s\\n" "Option '${arg}' requires a parameter"; _usage ;;
+                esac
+                shift; checksum="${1}"; [ "${1}" ] && shift
+            else
+                printf "%s\\n" "Option '${arg}' requires a parameter"; _usage
+            fi ;;
+        -c*) checksum="${1#-c}"; shift ;;
+        --checksum*) checksum="${1#--checksum}"; shift ;;
+        '-t'|'--distro')
+            if [ "${#}" -gt "1" ]; then
+                case "${2}" in
+                    -*) printf "%s\\n" "Option '${arg}' requires a parameter"; _usage ;;
+                esac
+                shift; distro="${1}"; [ "${1}" ] && shift
+            else
+                printf "%s\\n" "Option '${arg}' requires a parameter"; _usage
+            fi ;;
+        -t*) distro="${1#-t}"; shift ;;
+        --distro*) distro="${1#--distro}"; shift ;;
+        '-f'|'--format')
+            if [ "${#}" -gt "1" ]; then
+                case "${2}" in
+                    -*) printf "%s\\n" "Option '${arg}' requires a parameter"; _usage ;;
+                esac
+                shift; compress_format="${1}"; [ "${1}" ] && shift
+            else
+                printf "%s\\n" "Option '${arg}' requires a parameter"; _usage
+            fi ;;
+        -f*) compress_format="${1#-f}"; shift ;;
+        --format*) compress_format="${1#--format}"; shift ;;
+        -l|--clean-cache) rm -rf "/tmp/${progname}".* && \
+                       [ -z "${quiet}" ] && printf "%s\\n" "Cache cleared successfully" || :
+                       exit ;;
+        -*) printf "%s\\n" "${progname}: unrecognized option \`${arg}'" >&2; _usage ;;
+    esac
+done
+
+if [ -z "${search_pattern}" ]; then
+    [ "${#}" -eq "0" ] && { printf "%s\\n" "${progname}: missing arguments" >&2; _usage; }
+    _static_get "${@}"
+else
+    _static_search "${search_pattern}"
+fi

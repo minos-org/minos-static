@@ -1,0 +1,69 @@
+- hosts: minos-static-web
+  vars:
+   - domain:    s.minos.io
+   - port:      80
+   - wwwroot:   /var/www/s.minos.io/
+   - buildroot: /home/admin/minos-static
+
+  tasks:
+   - name: Add upstream stable nginx repository
+     apt_repository: repo='ppa:nginx/stable' state=present validate_certs=no
+     register: ppastable
+
+   - name: Install nginx
+     apt: pkg=nginx state=installed update_cache=true install_recommends=no
+     when: ppastable|success
+     register: nginxinstalled
+     notify:
+      - Start nginx
+
+   - name: Add base nginx configuration
+     when: nginxinstalled|success
+     template: src=files/etc.nginx.conf.d.misc.conf dest=/etc/nginx/conf.d/misc.conf owner=root group=root
+
+   - name: Create web root
+     when: nginxinstalled|success
+     file: dest={{ wwwroot }} mode=0775 state=directory owner=www-data group=www-data recurse=yes
+     notify:
+      - Reload nginx
+
+   - name: Disable default site
+     when: nginxinstalled|success
+     file: dest=/etc/nginx/sites-enabled/default state=absent
+     notify:
+      - Reload nginx
+
+   - name: Add custom site config
+     template: src=files/s.minos.io.j2 dest=/etc/nginx/sites-available/{{ domain }}.conf owner=root group=root
+     when: nginxinstalled|success
+     register: customconfig
+     notify:
+      - Reload nginx
+
+   - name: Enable custom site config
+     when: customconfig|success
+     file: src=/etc/nginx/sites-available/{{ domain }}.conf dest=/etc/nginx/sites-enabled/{{ domain }}.conf state=link
+
+   - name: Add static binary repositories
+     when: customconfig|success
+     file: src={{ buildroot }}/{{ item }} dest={{ wwwroot }}/{{ item }} state=link owner=www-data group=www-data
+     with_items:
+        - bifrost
+        - morpheus
+        - misc
+
+   - name: Add robot.txt file
+     template: src=files/robots.txt dest={{ wwwroot }}/robots.txt owner=www-data group=www-data
+
+   - name: Stop nginx
+     shell: service nginx stop
+
+   - name: Start nginx
+     shell: service nginx start
+
+  handlers:
+   - name: Start nginx
+     service: name=nginx state=started
+
+   - name: Reload nginx
+     service: name=nginx state=reloaded
