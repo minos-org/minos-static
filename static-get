@@ -76,7 +76,8 @@ _get_available_distros()
         cd /tmp/"${progname}.${bmirror}"
         case "${retriever_bin}" in
             *curl*) curl -o index.html "${bmirror}" >/dev/null 2>&1 ;;
-            *) $retriever_bin "${bmirror}" >/dev/null 2>&1 ;;
+            *) $retriever_bin "${bmirror}" >/dev/null 2>&1 || \
+               $retriever_bin "http://${bmirror}" >/dev/null 2>&1 ;;
         esac
     fi
     awk  -F'"' '/href/ {if ($2 != "../") print $2}' /tmp/"${progname}.${bmirror}/index.html" 2>/dev/null
@@ -93,7 +94,8 @@ _get_available_archs()
         cd /tmp/"${progname}.${1}/${2}"
         case "${retriever_bin}" in
             *curl*) curl -o index.html "${1}/${2}" >/dev/null 2>&1 ;;
-            *) $retriever_bin "${1}/${2}" >/dev/null 2>&1 ;;
+            *) $retriever_bin "${1}/${2}" >/dev/null 2>&1 || \
+               $retriever_bin "http://${1}/${2}" >/dev/null 2>&1 ;;
         esac
     fi
     awk  -F'"' '/href/ {if ($2 != "../") print $2}' /tmp/"${progname}.${1}/${2}/index.html" 2>/dev/null
@@ -111,7 +113,9 @@ _get_package_indexes()
             [ -d /tmp/"${progname}.${1}/${gdistro}/${garch}" ] || mkdir /tmp/"${progname}.${1}/${gdistro}/${garch}"
             cd /tmp/"${progname}.${1}/${gdistro}/${garch}"
             if [ ! -f /tmp/"${progname}.${1}/${gdistro}/${garch}/${checksum}sum.txt" ]; then
-                $retriever_bin "${1}/${gdistro}/${garch}/${checksum}sum.tar.${compress_format}" >/dev/null 2>&1
+                $retriever_bin "${1}/${gdistro}/${garch}/${checksum}sum.tar.${compress_format}" >/dev/null 2>&1 || \
+                $retriever_bin "http://${1}/${gdistro}/${garch}/${checksum}sum.tar.${compress_format}" >/dev/null 2>&1 || \
+
                 ${compress_bin} < "${checksum}sum.tar.${compress_format}" | tar xf -
             fi
         done
@@ -196,7 +200,8 @@ _static_search()
     _get_package_indexes "${mirror}"
 
     [ -z "${bmirror}" ] && bmirror="$(_basename "${mirror}")"
-    simple_search_pattern="$(printf "%s" "${search_pattern}" | tr -cd '[a-zA-Z]')"
+    simple_search_pattern="$(printf "%s" "${search_pattern}" | \
+    tr -cd 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ')"
     [ "${distro}" = "all" ] && distro=""
 
     _static_search_result="$(find /tmp/static-get."${bmirror}"/ -iname "${checksum}sum.txt" | \
@@ -254,7 +259,12 @@ _static_get()
                     rm -f /tmp/static-get."${bmirror}/${static_get_bfile}"
                 fi
             else
-                (cd /tmp/static-get."${bmirror}/" && $retriever_bin "${static_get_file}" >/dev/null 2>/dev/null)
+                (cd /tmp/static-get."${bmirror}/" && \
+                {
+                    $retriever_bin "${static_get_file}" >/dev/null 2>/dev/null || \
+                    $retriever_bin "http://${static_get_file}" >/dev/null 2>/dev/null
+                }
+                )
             fi
         done
     done
