@@ -114,7 +114,7 @@ _get_package_indexes()
             cd /tmp/"${progname}.${1}/${gdistro}/${garch}"
             if [ ! -f /tmp/"${progname}.${1}/${gdistro}/${garch}/${checksum}sum.txt" ]; then
                 $retriever_bin "${1}/${gdistro}/${garch}/${checksum}sum.tar.${compress_format}" >/dev/null 2>&1 || \
-                $retriever_bin "http://${1}/${gdistro}/${garch}/${checksum}sum.tar.${compress_format}" >/dev/null 2>&1 || \
+                $retriever_bin "http://${1}/${gdistro}/${garch}/${checksum}sum.tar.${compress_format}" >/dev/null 2>&1
 
                 ${compress_bin} < "${checksum}sum.tar.${compress_format}" | tar xf -
             fi
