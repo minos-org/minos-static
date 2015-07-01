@@ -201,7 +201,7 @@ _static_search()
 
     [ -z "${bmirror}" ] && bmirror="$(_basename "${mirror}")"
     simple_search_pattern="$(printf "%s" "${search_pattern}" | \
-    tr -cd 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ')"
+    tr -cd 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890.-')"
     [ "${distro}" = "all" ] && distro=""
 
     _static_search_result="$(find /tmp/static-get."${bmirror}"/ -iname "${checksum}sum.txt" | \
