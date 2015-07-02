@@ -19,6 +19,9 @@ New and non functional recipes should be reported to upstream projects.
 - morpheus-autobuild
   - http://git.2f30.org/ports/
   - https://github.com/minos-org/morpheus-ports-delta (if upstream don't reply)
+- rlsd2-autobuild
+  - https://github.com/dimkr/rlsd2
+  - https://github.com/minos-org/rlsd2-delta (if upstream don't reply)
 - misc-autosync / misc-autosync-resources (to the described url)
 
 ## Mirroring

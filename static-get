@@ -20,7 +20,7 @@ _usage()
     printf "%b\\n" "  -a, --arch [x86_64|i686]    set architecture" >&2
     printf "%b\\n" "  -f, --format [gz|bz2|xz]    set compress format" >&2
     printf "%b\\n" "  -c, --checksum [sha512|md5] set checksum" >&2
-    printf "%b\\n" "  -t, --distro [all|bifrost|morpheus|misc] set distro" >&2
+    printf "%b\\n" "  -t, --distro [all|bifrost|morpheus|rlsd2|misc] set distro" >&2
     printf "\\n" >&2
     printf "%b\\n" "  -v, --verbose               turn on verbose mode" >&2
     printf "%b\\n" "  -q, --quiet                 suppress non-error messages" >&2
