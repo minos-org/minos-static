@@ -42,8 +42,13 @@
 
     - name: Add minos-static cronjob
       #every 1:00 am
-      cron: name="minos-static" minute="0" hour="1"
-            user="root" job="/home/admin/minos-static/bifrost-autobuild >/dev/null 2>&1 ; /home/admin/minos-static/morpheus-autobuild >/dev/null 2>&1 ; /home/admin/minos-static/misc-autosync >/dev/null 2>&1" state=present
+      cron: name="minos-static {{item}}" minute="0" hour="1"
+            user="root" job="/home/admin/minos-static/{{item}} >/dev/null 2>&1" state=present
+      with_items:
+        - bifrost-autobuild
+        - morpheus-autobuild
+        - rlsd2-autobuild
+        - misc-autosync
 
     - name: Set appropiate permitions to the minos-static directory
       file: path=/home/admin/minos-static state=directory owner=admin group=admin recurse=yes

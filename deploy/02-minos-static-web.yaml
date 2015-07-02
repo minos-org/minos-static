@@ -50,6 +50,7 @@
      with_items:
         - bifrost
         - morpheus
+        - rlsd2
         - misc
 
    - name: Add robot.txt file
