@@ -59,7 +59,7 @@ _die()
 _normalize()
 {
     [ -z "${1}" ] && return 1
-    _normalize__bname="$(_basename "${1}")"
+    [ -z "${2}" ] && _normalize__bname="$(_basename "${1}")" || _normalize__bname="$(_basename "${2}")"
     _normalize__origin="${1##http://}"
     _normalize__origin="${_normalize__origin##https://}"
     _normalize__origin="${_normalize__origin##ftp://}"
@@ -141,9 +141,20 @@ _cook_recipe()
             '#'*) : ;;
             *)
                 _cook_recipe__bname="$(_basename "${_cook_recipe__url}")"
-                _cook_recipe__bname_without_suffix="${_cook_recipe__bname%%.tar*}"
+                _cook_recipe__rename="${_cook_recipe__bname##*:}"
+
+                if [ X"${_cook_recipe__bname}" = X"${_cook_recipe__rename}" ]; then
+                    _cook_recipe__bname_without_suffix="${_cook_recipe__bname%%.tar*}"
+                else
+                    _cook_recipe__bname_without_suffix="${_cook_recipe__rename}"
+                    _cook_recipe__bname="${_cook_recipe__rename}"
+                    _cook_recipe__bname_without_suffix="${_cook_recipe__bname_without_suffix%%.tar*}"
+                    _cook_recipe__wget_opts="-O ${_cook_recipe__rename}"
+                fi
+
                 _cook_recipe__bname_without_suffix="${_cook_recipe__bname_without_suffix%%.zip}"
                 _cook_recipe__bname_without_suffix="${_cook_recipe__bname_without_suffix%%.rar}"
+
                 _cook_recipe__origin="${_cook_recipe__url##http://}"
                 _cook_recipe__origin="${_cook_recipe__origin##https://}"
                 _cook_recipe__origin="${_cook_recipe__origin##ftp://}"
@@ -157,12 +168,12 @@ _cook_recipe()
                 [ -f "${_cook_recipe__bname}" ] || touch "${_cook_recipe__bname}"
                 _cook_recipe__hash_orig="$(shasum -a 512 "${_cook_recipe__bname}" | awk '{print $1}')"
                 printf "%s\\n" "   fetching ${_cook_recipe__url} ..."
-                wget -c -N  -q "${_cook_recipe__url}" > "${_cook_recipe__output}" 2>&1 ||
+                wget -c -N ${_cook_recipe__wget_opts} -q "${_cook_recipe__url%:$_cook_recipe__rename}" > "${_cook_recipe__output}" 2>&1 ||
                 { _cook_recipe__stdoutb="$(tail -100 "${_cook_recipe__output}")"; rm -rf "${_cook_recipe__output}";
                 _warning "couldn't retrieve ${_cook_recipe__url}\\n" "$(printf "%s\\n" "${_wget__stdoutb}")"; }
                 _cook_recipe__hash_new="$(shasum -a 512 "${_cook_recipe__bname}" | awk '{print $1}')"
                 if [ "${_cook_recipe__hash_orig}" != "${_cook_recipe__hash_new}" ]; then
-                    _cook_recipe__normal="$(_normalize "${_cook_recipe__url}")"
+                    _cook_recipe__normal="$(_normalize "${_cook_recipe__url}" "${_cook_recipe__rename}")"
                     [ -n "${_cook_recipe__normal}" ]  || return 1
                     _repackage "${PWD}/${_cook_recipe__normal}" bz2
                     _repackage "${PWD}/${_cook_recipe__normal}" xz
