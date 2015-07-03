@@ -56,6 +56,31 @@ _die()
     exit 1
 }
 
+_remove_unique_root_dir()
+{
+    [ -z "${1}" ] && return 1
+    _rurdir__oldpwd="${PWD}"
+    cd "${1}"     || return 1
+
+    _rurdir__unique="$(find . -maxdepth 1 -type d ! -iname ".*")"
+
+    if [ -d "${_rurdir__unique}" ]; then
+        case "${_rurdir__unique##*/}" in
+            bin|boot|dev|etc|opt|usr|var|home|lib|media|mnt|proc|sbin|srv) : ;;
+            *)  _rurdir__mktemp="$(mktemp -d)"
+                mv "${_rurdir__unique}"/* "${_rurdir__mktemp}" && \
+                rm -rf "${_rurdir__unique}" && mv "${_rurdir__mktemp}"/*  . && \
+                rm -rf "${_rurdir__mktemp}" || {
+                    _warning "failed to remove unique root dir from ${1}" "${_rurdir__unique} -> ${1}"
+                    cd "${_rurdir__oldpwd}"
+                    return 1
+                }
+                ;;
+        esac
+    fi
+    cd "${_rurdir__oldpwd}"
+}
+
 _normalize()
 {
     [ -z "${1}" ] && return 1
@@ -73,26 +98,27 @@ _normalize()
             #requires a modern tar version
             tar xf "${_normalize__bname}" > "${_normalize__output}" 2>&1 ||
             { _normalize__stdoutb="$(tail -100 "${_normalize__output}")"; rm -rf "${_normalize__output}";
-            _warning "failed to untar ${_normalize__bname}\\n" "$(printf "%s\\n" "${_normalize__stdoutb}")";
+            _warning "failed to untar ${_normalize__bname}" "$(printf "%s\\n" "${_normalize__stdoutb}")";
             return 1; }
             _normalize__bname="$(tar tf "${_normalize__bname}"| head -1)"
             ;;
         *.zip)
-            unzip "${_normalize__bname}" > "${_normalize__output}" 2>&1 ||
+            unzip -d "${_normalize__bname%%.zip}" "${_normalize__bname}" > "${_normalize__output}" 2>&1 ||
             { _normalize__stdoutb="$(tail -100 "${_normalize__output}")"; rm -rf "${_normalize__output}";
-            _warning "failed to unzip ${_normalize__bname}\\n" "$(printf "%s\\n" "${_normalize__stdoutb}")";
+            _warning "failed to unzip ${_normalize__bname}" "$(printf "%s\\n" "${_normalize__stdoutb}")";
             return 1; }
+            _remove_unique_root_dir "${_normalize__bname%%.zip}"
             _normalize__bname="${_normalize__bname%%.zip}"
             ;;
         *.rar)
             unrar "${_normalize__bname}" > "${_normalize__output}" 2>&1 ||
             { _normalize__stdoutb="$(tail -100 "${_normalize__output}")"; rm -rf "${_normalize__output}";
-            _warning "failed to unrar ${_normalize__bname}\\n" "$(printf "%s\\n" "${_normalize__stdoutb}")";
+            _warning "failed to unrar ${_normalize__bname}" "$(printf "%s\\n" "${_normalize__stdoutb}")";
             return 1; }
             _normalize__bname="${_normalize__bname%%.rar}"
             ;;
         *)
-            [ -f "${_normalize__bname}" ] || { _warning "unsupported format ${1}\\n"; return 1; }
+            [ -f "${_normalize__bname}" ] || { _warning "unsupported format ${1}"; return 1; }
         ;;
     esac
 
@@ -100,7 +126,7 @@ _normalize()
     _normalize__target="${_normalize__bname}-${_normalize__origin}"
     tar -zcf "${_normalize__target}.tar.gz" "${_normalize__bname}"  > "${_normalize__output}" 2>&1 ||
     { _normalize__stdoutb="$(tail -100 "${_normalize__output}")"; rm -rf "${_normalize__output}";
-    _warning "failed to tar ${_normalize__bname}\\n" "$(printf "%s\\n" "${_normalize__stdoutb}")";
+    _warning "failed to tar ${_normalize__bname}" "$(printf "%s\\n" "${_normalize__stdoutb}")";
     return 1; }
     rm -rf "${_normalize__output}" "${_normalize__bname}"
     printf "%s" "${_normalize__target}.tar.gz"
@@ -167,10 +193,13 @@ _cook_recipe()
 
                 [ -f "${_cook_recipe__bname}" ] || touch "${_cook_recipe__bname}"
                 _cook_recipe__hash_orig="$(shasum -a 512 "${_cook_recipe__bname}" | awk '{print $1}')"
+
                 printf "%s\\n" "   fetching ${_cook_recipe__url} ..."
-                wget -c -N ${_cook_recipe__wget_opts} -q "${_cook_recipe__url%:$_cook_recipe__rename}" > "${_cook_recipe__output}" 2>&1 ||
+                wget -c -N ${_cook_recipe__wget_opts} -d "${_cook_recipe__url%:$_cook_recipe__rename}" > "${_cook_recipe__output}" 2>&1 || \
+                wget --no-check-certificate -c ${_cook_recipe__wget_opts} -d "${_cook_recipe__url%:$_cook_recipe__rename}" >> "${_cook_recipe__output}" 2>&1 || \
                 { _cook_recipe__stdoutb="$(tail -100 "${_cook_recipe__output}")"; rm -rf "${_cook_recipe__output}";
-                _warning "couldn't retrieve ${_cook_recipe__url}\\n" "$(printf "%s\\n" "${_wget__stdoutb}")"; }
+                _warning "couldn't retrieve ${_cook_recipe__url}" "$(printf "%s\\n" "${_cook_recipe__stdoutb}")"; }
+
                 _cook_recipe__hash_new="$(shasum -a 512 "${_cook_recipe__bname}" | awk '{print $1}')"
                 if [ "${_cook_recipe__hash_orig}" != "${_cook_recipe__hash_new}" ]; then
                     _cook_recipe__normal="$(_normalize "${_cook_recipe__url}" "${_cook_recipe__rename}")"
@@ -178,7 +207,7 @@ _cook_recipe()
                     _repackage "${PWD}/${_cook_recipe__normal}" bz2
                     _repackage "${PWD}/${_cook_recipe__normal}" xz
                     _repackage "${PWD}/${_cook_recipe__normal}" cleanup
-                    mv "${_cook_recipe__normal}" ..
+                    mv "${_cook_recipe__normal}"          ..
                     mv "${_cook_recipe__normal%%.gz}".bz2 ..
                     mv "${_cook_recipe__normal%%.gz}".xz  ..
                 fi
@@ -242,12 +271,12 @@ printf "%s\\n" "creating index ...";
 (cd "${bdir}"/misc/x86_64/ && md5sum *tar* > md5sum.txt 2>/dev/null)
 
 [ X"$(ls "${bdir}"/misc/i686/*tar*|wc -l)" = X"$(wc -l "${bdir}"/misc/i686/sha512sum.txt|awk '{print $1}')" ] || \
-    _die "Package entries don't match total archives(i686)\\n"     \
+    _die "Package entries don't match total archives(i686)"     \
     "sha512 entries:$(wc -l "${bdir}"/misc/i686/sha512sum.txt)\\n" \
     "archives      :$(ls "${bdir}"/misc/i686/*tar*|wc -l)"
 
 [ X"$(ls "${bdir}"/misc/x86_64/*tar*|wc -l)" = X"$(wc -l "${bdir}"/misc/x86_64/sha512sum.txt|awk '{print $1}')" ] || \
-    _die "Package entries don't match total archives(x86_64)\\n"     \
+    _die "Package entries don't match total archives(x86_64)"     \
     "sha512 entries:$(wc -l "${bdir}"/misc/x86_64/sha512sum.txt)\\n" \
     "archives      :$(ls "${bdir}"/misc/x86_64/*tar*|wc -l)"
 
