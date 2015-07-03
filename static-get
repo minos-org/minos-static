@@ -256,6 +256,7 @@ _static_get()
                     fi
                     break
                 else
+                    printf "%s file doesn't match hash sum, clean the cache and try again\\n" "${directory}/${static_get_bfile}" | sed 's:\./::'
                     rm -f /tmp/static-get."${bmirror}/${static_get_bfile}"
                 fi
             else
