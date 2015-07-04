@@ -195,8 +195,14 @@ _cook_recipe()
                 _cook_recipe__hash_orig="$(shasum -a 512 "${_cook_recipe__bname}" | awk '{print $1}')"
 
                 printf "%s\\n" "   fetching ${_cook_recipe__url} ..."
+
+                case "${_cook_recipe__url}" in
+                    #http://lists.gnu.org/archive/html/bug-wget/2009-07/msg00080.html
+                    *.zip) rm -rf *.zip ;;
+                esac
+
                 wget -c -N ${_cook_recipe__wget_opts} -d "${_cook_recipe__url%:$_cook_recipe__rename}" > "${_cook_recipe__output}" 2>&1 || \
-                wget --no-check-certificate -c ${_cook_recipe__wget_opts} -d "${_cook_recipe__url%:$_cook_recipe__rename}" >> "${_cook_recipe__output}" 2>&1 || \
+                wget -c --no-check-certificate ${_cook_recipe__wget_opts} -d "${_cook_recipe__url%:$_cook_recipe__rename}" >> "${_cook_recipe__output}" 2>&1 || \
                 { _cook_recipe__stdoutb="$(tail -100 "${_cook_recipe__output}")"; rm -rf "${_cook_recipe__output}";
                 _warning "couldn't retrieve ${_cook_recipe__url}" "$(printf "%s\\n" "${_cook_recipe__stdoutb}")"; }
 
