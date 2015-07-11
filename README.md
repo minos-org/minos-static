@@ -9,6 +9,12 @@ $ static-get git
 git-1.9.2.tar.xz
 ```
 
+A verbose list of all available packages can be retrieved with:
+
+```
+$ static-get --search
+```
+
 ## Recipes
 
 New and non functional recipes should be reported to upstream projects.
