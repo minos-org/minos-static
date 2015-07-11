@@ -26,7 +26,7 @@ New and non functional recipes should be reported to upstream projects.
 
 ## Mirroring
 
-If you're intested in the provided binaries but don't whish to compile the whole packages you can mirror http://s.minos.io, to do so, please use one of the following methods:
+If you're intested in the provided binaries but don't wish to compile the whole packages, you can mirror http://s.minos.io. To do so, please use one of the following methods:
 
 - `rsync -azvL --delete rsync://s.minos.io/mirror/ /usr/local/linux-static-mirror`
 
