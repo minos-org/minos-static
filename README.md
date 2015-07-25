@@ -9,6 +9,12 @@ $ static-get git
 git-1.9.2.tar.xz
 ```
 
+A verbose list of all available packages can be retrieved with:
+
+```
+$ static-get --search
+```
+
 ## Recipes
 
 New and non functional recipes should be reported to upstream projects.
@@ -26,7 +32,7 @@ New and non functional recipes should be reported to upstream projects.
 
 ## Mirroring
 
-If you're intested in the provided binaries but don't whish to compile the whole packages you can mirror http://s.minos.io, to do so, please use one of the following methods:
+If you're intested in mirroring the provided binaries, please use one of the following methods (otherwise your IP may be banned):
 
 - `rsync -azvL --delete rsync://s.minos.io/mirror/ /usr/local/linux-static-mirror`
 
