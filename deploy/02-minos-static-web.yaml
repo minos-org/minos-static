@@ -17,6 +17,11 @@
      notify:
       - Start nginx
 
+   - name: Add nginx to the boot secuence
+     when: nginxinstalled|success
+     #I don't trust the service module
+     shell: update-rc.d nginx defaults
+
    - name: Add base nginx configuration
      when: nginxinstalled|success
      template: src=files/etc.nginx.conf.d.misc.conf dest=/etc/nginx/conf.d/misc.conf owner=root group=root
