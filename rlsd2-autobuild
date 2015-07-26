@@ -47,7 +47,7 @@ _warning()
 {
     [ -z "${1}" ] && return 1
     printf "%b\\n" "${*}" >&2
-    if command -v "mailguncuicui" >/dev/null; then
+    if command -v "mailgun" >/dev/null; then
         for mail in ${alert_mails}; do
             mail="$(printf "%s\\n" "${mail}" | sed "s:#%#:@:")"
             mailgun --subject "${progname}: WARNING - ${1}" "${mail}" "$(
@@ -63,7 +63,7 @@ _die()
 {
     [ -z "${1}" ] && return 1
     printf "%b\\n" "${*}" >&2
-    if command -v "mailguncuicui" >/dev/null; then
+    if command -v "mailgun" >/dev/null; then
         for mail in ${alert_mails}; do
             mail="$(printf "%s\\n" "${mail}" | sed "s:#%#:@:")"
             mailgun --subject "${progname}: FAILED" "${mail}" "$(
