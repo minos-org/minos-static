@@ -71,34 +71,34 @@ _get_available_distros()
 {   #$1 => mirror, eg: s.minos.io
     [ -z "${1}" ] && return 1
     bmirror="$(_basename "${1}")"
-    [ -d /tmp/"${progname}.${bmirror}" ] || mkdir /tmp/"${progname}.${bmirror}"
-    if [ ! -f /tmp/"${progname}.${bmirror}/index.html" ]; then
-        cd /tmp/"${progname}.${bmirror}"
+    [ -d /tmp/"${progname_static}.${bmirror}" ] || mkdir /tmp/"${progname_static}.${bmirror}"
+    if [ ! -f /tmp/"${progname_static}.${bmirror}/index.html" ]; then
+        cd /tmp/"${progname_static}.${bmirror}"
         case "${retriever_bin}" in
             *curl*) curl -o index.html "${bmirror}" >/dev/null 2>&1 ;;
             *) $retriever_bin "${bmirror}" >/dev/null 2>&1 || \
                $retriever_bin "http://${bmirror}" >/dev/null 2>&1 ;;
         esac
     fi
-    awk  -F'"' '/href/ {if ($2 != "../") print $2}' /tmp/"${progname}.${bmirror}/index.html" 2>/dev/null
+    awk  -F'"' '/href/ {if ($2 != "../") print $2}' /tmp/"${progname_static}.${bmirror}/index.html" 2>/dev/null
 }
 
 _get_available_archs()
 {   #$1 => mirror, eg: s.minos.io
     #$2 => distro, eg: bifrost
     [ -z "${2}" ] && return 1
-    [ -d /tmp/"${progname}.${1}" ] || mkdir /tmp/"${progname}.${1}"
-    [ -d /tmp/"${progname}.${1}/${2}" ] || mkdir /tmp/"${progname}.${1}/${2}"
+    [ -d /tmp/"${progname_static}.${1}" ]      || mkdir /tmp/"${progname_static}.${1}"
+    [ -d /tmp/"${progname_static}.${1}/${2}" ] || mkdir /tmp/"${progname_static}.${1}/${2}"
 
-    if [ ! -f /tmp/"${progname}.${1}/${2}/index.html" ]; then
-        cd /tmp/"${progname}.${1}/${2}"
+    if [ ! -f /tmp/"${progname_static}.${1}/${2}/index.html" ]; then
+        cd /tmp/"${progname_static}.${1}/${2}"
         case "${retriever_bin}" in
             *curl*) curl -o index.html "${1}/${2}" >/dev/null 2>&1 ;;
             *) $retriever_bin "${1}/${2}" >/dev/null 2>&1 || \
                $retriever_bin "http://${1}/${2}" >/dev/null 2>&1 ;;
         esac
     fi
-    awk  -F'"' '/href/ {if ($2 != "../") print $2}' /tmp/"${progname}.${1}/${2}/index.html" 2>/dev/null
+    awk  -F'"' '/href/ {if ($2 != "../") print $2}' /tmp/"${progname_static}.${1}/${2}/index.html" 2>/dev/null
 }
 
 _get_package_indexes()
@@ -108,11 +108,11 @@ _get_package_indexes()
     for gdistro in ${available_distros}; do
         available_arch="$(_get_available_archs "${1}" "${gdistro}")"
         for garch in ${available_arch}; do
-            [ -d /tmp/"${progname}.${1}" ]      || mkdir /tmp/"${progname}.${1}"
-            [ -d /tmp/"${progname}.${1}/${gdistro}" ] || mkdir /tmp/"${progname}.${1}/${gdistro}"
-            [ -d /tmp/"${progname}.${1}/${gdistro}/${garch}" ] || mkdir /tmp/"${progname}.${1}/${gdistro}/${garch}"
-            cd /tmp/"${progname}.${1}/${gdistro}/${garch}"
-            if [ ! -f /tmp/"${progname}.${1}/${gdistro}/${garch}/${checksum}sum.txt" ]; then
+            [ -d /tmp/"${progname_static}.${1}" ]                     || mkdir /tmp/"${progname_static}.${1}"
+            [ -d /tmp/"${progname_static}.${1}/${gdistro}" ]          || mkdir /tmp/"${progname_static}.${1}/${gdistro}"
+            [ -d /tmp/"${progname_static}.${1}/${gdistro}/${garch}" ] || mkdir /tmp/"${progname_static}.${1}/${gdistro}/${garch}"
+            cd /tmp/"${progname_static}.${1}/${gdistro}/${garch}"
+            if [ ! -f /tmp/"${progname_static}.${1}/${gdistro}/${garch}/${checksum}sum.txt" ]; then
                 $retriever_bin "${1}/${gdistro}/${garch}/${checksum}sum.tar.${compress_format}" >/dev/null 2>&1 || \
                 $retriever_bin "http://${1}/${gdistro}/${garch}/${checksum}sum.tar.${compress_format}" >/dev/null 2>&1
 
@@ -204,7 +204,7 @@ _static_search()
     tr -cd 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890.-')"
     [ "${distro}" = "all" ] && distro=""
 
-    _static_search_result="$(find /tmp/static-get."${bmirror}"/ -iname "${checksum}sum.txt" | \
+    _static_search_result="$(find /tmp/"${progname_static}.${bmirror}"/ -iname "${checksum}sum.txt" | \
         grep "${distro}" | xargs grep "${simple_search_pattern}" | \
         grep "${arch}"   | grep "tar.${compress_format}" | \
         sed "s:/tmp/static-get.::g;s:/${checksum}sum.txt\:: :g")"
@@ -272,6 +272,7 @@ _static_get()
 }
 
 progname="$(_basename "${0}")"
+progname_static="static-get"
 
 if [ ! -t 0 ]; then
     #there is input comming from pipe or file, add it to the end of $@
@@ -361,7 +362,7 @@ for arg; do #parse options
             fi ;;
         -f*) compress_format="${1#-f}"; shift ;;
         --format*) compress_format="${1#--format}"; shift ;;
-        -l|--clean-cache) rm -rf "/tmp/${progname}".* && \
+        -l|--clean-cache) rm -rf "/tmp/${progname_static}".* && \
                        [ -z "${quiet}" ] && printf "%s\\n" "Cache cleared successfully" || :
                        exit ;;
         -*) printf "%s\\n" "${progname}: unrecognized option \`${arg}'" >&2; _usage ;;
