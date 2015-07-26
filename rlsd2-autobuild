@@ -247,7 +247,8 @@ for recipe in "${bdir}"/rlsd2-build/native-i386/var/lib/rlsd2/rules/*; do
     esac
     #only build updated recipes
     if ! diff -rq -x '.*' "${recipe}" "${bdir}/rlsd2-build/native-i386/var/lib/rlsd2.rules.reference/${brecipe}" >/dev/null 2>&1 || \
-       [ ! -f "${recipe}/../../packages/${brecipe}".tar.gz ] ; then
+        [ ! -f "${recipe}/../../packages/${brecipe}".tar.gz ]; then
+        rm -rf "${recipe}/../../packages/${brecipe}".tar.gz "${recipe}/../../sources/${brecipe}/*"
         printf "%s\\n" "building ${brecipe} ..."; _recipe__stdout="$(tempfile)"
         (cd "${bdir}/rlsd2-build/" && ./chroot-i686-build.sh "${brecipe}" > "${_recipe__stdout}" 2>&1)
         if [ -f "${recipe}"/../../packages/"${brecipe}".tar.gz ]; then
