@@ -165,8 +165,8 @@ for recipe in "${bdir}"/bifrost-build/mini-native-i586/var/lib/build/all/*; do
         _warning "${recipe} failed to build" "\\n$(tail -100 "${bdir}/bifrost-build/mini-native-i586/var/log/build/${recipe}.log")"
     fi
 done
-
 umount "${bdir}"/bifrost-build/mini-native-i586/proc "${bdir}"/bifrost-build/mini-native-i586/sys 2>/dev/null
+
 [ ! -d "${bdir}"/bifrost/i686 ] && mkdir -p "${bdir}"/bifrost/i686
 [ ! -f "${bdir}"/bifrost/lock ] && touch "${bdir}"/bifrost/lock
 
