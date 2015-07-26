@@ -9,11 +9,17 @@ server {
     }
 
     location /static-get {
-        rewrite ^/.* https://raw.githubusercontent.com/minos-org/minos-static/master/static-get permanent;
+        #https://s.minos.io/s should redirect to a https site, meanwhile http is kept for compatibility
+        #with bare minimal systems like busybox wget
+        #rewrite ^/.* https://raw.githubusercontent.com/minos-org/minos-static/master/static-get permanent;
+        rewrite ^/.* http://cdn.rawgit.com/minos-org/minos-static/d1a24fb18a7e6236f8e99728bbedd82df297c3c7/static-get permanent;
     }
 
     location /s {
-        rewrite ^/.* https://raw.githubusercontent.com/minos-org/minos-static/master/static-get permanent;
+        #https://s.minos.io/s should redirect to a https site, meanwhile http is kept for compatibility
+        #with bare minimal systems like busybox wget
+        #rewrite ^/.* https://raw.githubusercontent.com/minos-org/minos-static/master/static-get permanent;
+        rewrite ^/.* http://cdn.rawgit.com/minos-org/minos-static/d1a24fb18a7e6236f8e99728bbedd82df297c3c7/static-get permanent;
     }
 
     if ($request_method !~ ^(GET|HEAD|POST)$ )
