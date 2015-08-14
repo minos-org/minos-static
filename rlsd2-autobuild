@@ -6,7 +6,7 @@ alert_mails="m#%#javier.io"
 PS4="> "
 
 #crontab jobs run in a very sparse environment
-export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin"
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin:/sbin"
 
 _basename()
 {
@@ -152,7 +152,7 @@ _install_ubuntu_pkg()
         printf "%s\\n" "installing ubuntu pkg: ${_install_ubuntu_pkg__pkg}"
         ./chroot-i686-install.sh "${_install_ubuntu_pkg__pkg}" > "${_ibpkg__stdout}" 2>&1 || {
         _ibpkg__stdoutb="$(cat "${_ibpkg__stdout}")"; rm -rf "${_ibpkg__stdout}"
-        _die "failed to install ${_install_ubuntu_pkg__pkg} in the init environment\\n" "$(printf "%s\\n" "${_cp__stdoutb}")"
+        _die "failed to install ${_install_ubuntu_pkg__pkg} in the init environment\\n" "$(printf "%s\\n" "${_ibpkg__stdoutb}")"
         }
     done
 }
@@ -222,7 +222,10 @@ _cp "${bdir}/rlsd2-build/minos-rlsd2/scripts/env-install.sh" "${bdir}/rlsd2-buil
 _cp "${bdir}/rlsd2-build/minos-rlsd2/scripts/env-hooks.sh"   "${bdir}/rlsd2-build/native-i386/bin/env-hooks.sh"
 _cp "${bdir}/rlsd2-build/minos-rlsd2/scripts/rlsd2-pkg"      "${bdir}/rlsd2-build/native-i386/bin/rlsd2-pkg"
 
-_install_ubuntu_pkg $(wget --no-check-certificate -qO- https://raw.githubusercontent.com/dimkr/rlsd2/master/packer/www/preseed.cfg | awk '/pkgsel.?include/ {$1=""; $2=""; $3=""; print $0}')
+_install_ubuntu_pkg $(wget --no-check-certificate -qO- \
+    https://raw.githubusercontent.com/dimkr/rlsd2/master/packer/www/preseed.cfg | \
+    awk '/pkgsel.?include/ {$1=""; $2=""; $3=""; print $0}' | \
+    awk '{ for(i=1;i<=NF;i++) if ($i == "extlinux" || $i == "qemu-utils")  $i=""; else printf "%s ", $i }')
 
 #setup rlsd2
 mkdir -p "${bdir}/rlsd2-build/native-i386/var/lib/rlsd2"
