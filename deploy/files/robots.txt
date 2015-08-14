@@ -3,3 +3,6 @@ Disallow: /
 
 User-agent: Googlebot
 Disallow: /
+
+User-agent: spbot
+Disallow: /

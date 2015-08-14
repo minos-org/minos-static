@@ -1,0 +1,22 @@
+_static_get()
+{
+    if ! command -v "static-get" >/dev/null 2>&1; then
+        return
+    fi
+
+    #defining local vars
+    local cur prev words cword
+    _init_completion || return
+
+    #general options
+    case "${cur}" in
+        #basic completion script, more advanced adjustments are welcome
+        --*) long_opts="$(static-get  -h 2>&1 | awk 'match($0,/--[0-9A-Za-z]* /) {print substr($0,RSTART,RLENGTH)}')"
+             COMPREPLY=($(compgen -W "${long_opts}" -- ${cur}));  return ;;
+         *)  short_opts="$(static-get -h 2>&1 | awk '/^ *-.+ / {sub(/,/, ""); print $1}')"
+             COMPREPLY=($(compgen -W "${short_opts}" -- ${cur})); return ;;
+    esac
+} &&
+complete -F _static_get static-get
+
+# vim: set ts=8 sw=4 tw=0 ft=sh :
