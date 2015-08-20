@@ -256,10 +256,10 @@ for recipe in "${bdir}"/rlsd2-build/native-i386/var/lib/rlsd2/rules/*; do
         (cd "${bdir}/rlsd2-build/" && ./chroot-i686-build.sh "${brecipe}" > "${_recipe__stdout}" 2>&1)
         if [ -f "${recipe}"/../../packages/"${brecipe}".tar.gz ]; then
             cp "${recipe}"/../../packages/"${brecipe}".tar.gz "${bdir}"/rlsd2-build/native-i386/var/spool/rlsd2-pkgs/
-            [ -d "${bdir}/rlsd2-build/rlsd2-ports-delta/broken/${brecipe}" ] &&
+            [ -d "${bdir}/rlsd2-build/minos-rlsd2/broken/${brecipe}" ] &&
             _warning "${brecipe} seems no longer broken" "\\n$(tail -100 "${_recipe__stdout}")"
         else
-            [ -d "${bdir}/rlsd2-build/rlsd2-ports-delta/broken/${brecipe}" ] ||
+            [ -d "${bdir}/rlsd2-build/minos-rlsd2/broken/${brecipe}" ] ||
             _warning "${brecipe} failed to build" "\\n$(tail -100 "${recipe}/../../logs/${brecipe}.log")"
         fi
         rm -rf "${_recipe__stdout}"
