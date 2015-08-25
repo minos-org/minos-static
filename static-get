@@ -118,7 +118,8 @@ _get_available_distros()
                $retriever_bin "http://${bmirror}" >/dev/null 2>&1 ;;
         esac
     fi
-    awk  -F'"' '/href/ {if ($2 != "../") print $2}' /tmp/"${progname_static}.${bmirror}/index.html" 2>/dev/null
+    awk  -F'"' '/href/ {if ($2 != "../" && $2 != "robots.txt") print $2}' \
+        /tmp/"${progname_static}.${bmirror}/index.html" 2>/dev/null
 }
 
 _get_available_archs()
