@@ -1,0 +1,94 @@
+@begin{static-get}
+static-get -h ; test X"${?}"                = X"1"
+printf "%s" '-h' | static-get; test X"${?}" = X"1"
+static-get -d ;   test X"${?}"              = X"1"
+static-get -x ;   test X"${?}"              = X"1"
+static-get -n ;   test X"${?}"              = X"1"
+static-get -m ;   test X"${?}"              = X"1"
+static-get -a ;   test X"${?}"              = X"1"
+static-get -f ;   test X"${?}"              = X"1"
+static-get -c ;   test X"${?}"              = X"1"
+static-get -t ;   test X"${?}"              = X"1"
+static-get --cui; test X"${?}"              = X"1"
+test X"$(static-get -h 2>&1|head -1)"                  = X"Usage: static-get [OPTION]... PACKAGE ..."
+test X"$(static-get --help 2>&1|head -1)"              = X"Usage: static-get [OPTION]... PACKAGE ..."
+test X"$(static-get --cui 2>&1|head -1)"               = X"static-get: unrecognized option '--cui'"
+test X"$(static-get --download 2>&1|head -1)"          = X"Option '--download' requires a parameter"
+test X"$(static-get --download . 2>&1|head -1)"        = X"static-get: missing arguments"
+test X"$(static-get -x 2>&1|head -1)"                  = X"static-get: missing arguments"
+test X"$(static-get --dry-run 2>&1|head -1)"           = X"static-get: missing arguments"
+test X"$(static-get -m 2>&1|head -1)"                  = X"Option '-m' requires a parameter"
+test X"$(static-get --mirror s.minos.io 2>&1|head -1)" = X"static-get: missing arguments"
+test X"$(static-get -a 2>&1|head -1)"                  = X"Option '-a' requires a parameter"
+test X"$(static-get --arch 32 2>&1|head -1)"           = X"static-get: missing arguments"
+test X"$(static-get -f 2>&1|head -1)"                  = X"Option '-f' requires a parameter"
+test X"$(static-get --format gz 2>&1|head -1)"         = X"static-get: missing arguments"
+test X"$(static-get -c 2>&1|head -1)"                  = X"Option '-c' requires a parameter"
+test X"$(static-get --checksum md5 2>&1|head -1)"      = X"static-get: missing arguments"
+test X"$(static-get -t 2>&1|head -1)"                  = X"Option '-t' requires a parameter"
+test X"$(static-get --distro misc 2>&1|head -1)"       = X"static-get: missing arguments"
+test X"$(static-get -v 2>&1|head -1)"                  = X"static-get: missing arguments"
+test X"$(static-get -v -q 2>&1|head -1)"               = X"static-get: missing arguments"
+test X"$(static-get --verbose 2>&1|head -1)"           = X"static-get: missing arguments"
+
+test "$(static-get -s allcaps 2>&1|wc -l)" -gt "1"
+test "$(static-get -s laksdjlaskjdlaksjdlakjsl 2>&1|wc -l)" -eq "0"
+
+test X"$(static-get -f gz allcaps-1-1 2>&1)" = X"allcaps-1-1.tar.gz"
+test -f allcaps-1-1.tar.gz && rm -rf allcaps-1-1.tar.gz
+
+test X"$(static-get -f gz allcaps-1-1 2>&1)" = X"allcaps-1-1.tar.gz"
+test -f allcaps-1-1.tar.gz
+md5sum_var=$(md5sum allcaps-1-1.tar.gz|awk '{print $1}')
+test X"$(static-get -f gz allcaps-1-1 2>&1)" = X"allcaps-1-1.tar.gz"
+test X"$(md5sum allcaps-1-1.tar.gz|awk '{print $1}')" = X"${md5sum_var}"
+rm -rf allcaps-1-1.tar.gz
+
+test X"$(static-get -f gz -n allcaps-1-1 2>&1)" = X"allcaps-1-1.tar.gz"
+test ! -f allcaps-1-1.tar.gz
+
+test "$(static-get -fgz -x allcaps-1-1 2>&1|wc -l)" -eq "2"
+test -d allcaps-1-1/ && test -f allcaps-1-1.tar.gz && rm -rf allcaps*
+
+test "$(static-get -d test -fgz -x allcaps-1-1 2>&1|wc -l)" -eq "2"
+test -d test/ && test -f test/allcaps-1-1.tar.gz && test -d test/allcaps-1-1/
+test ! -f allcaps-1-1.tar.gz && rm -rf test
+
+test X"$(static-get -fxz allcaps-1-1 2>&1)" = X"allcaps-1-1.tar.xz"
+test -f allcaps-1-1.tar.xz && rm -rf allcaps-1-1.tar.xz
+
+test "$(static-get -c md5    -s allcaps-1-1 2>&1 | cut -d: -f2 | tr -d '\n' | wc -c)" -eq "32"
+test "$(static-get -c sha512 -s allcaps-1-1 2>&1 | cut -d: -f2 | tr -d '\n' | wc -c)" -eq "128"
+
+static-get -f xz allcaps-1-1 allcaps-2-1
+test -f allcaps-1-1.tar.xz && test -f allcaps-2-1.tar.xz
+rm -rf allcaps*
+
+static-get -fxz    allcaps-1-1
+static-get -fxz -o file.tar.xz allcaps-1-1
+test -f allcaps-1-1.tar.xz && test -f file.tar.xz
+test X"$(md5sum allcaps-1-1.tar.xz|awk '{print $1}')" = X"$(md5sum file.tar.xz|awk '{print $1}')"
+rm -rf *.tar.xz
+
+static-get -f xz allcaps-1-1
+static-get -f xz -o- allcaps-1-1 > file.tar.xz
+test X"$(md5sum allcaps-1-1.tar.xz|awk '{print $1}')" = X"$(md5sum file.tar.xz|awk '{print $1}')"
+rm -rf *.tar.xz
+
+static-get -f xz allcaps-1-1
+static-get -f xz -o- allcaps-2-1 allcaps-1-1 > file.tar.xz
+test X"$(md5sum allcaps-1-1.tar.xz|awk '{print $1}')" != X"$(md5sum file.tar.xz|awk '{print $1}')"
+rm -rf *.tar.xz
+
+static-get -fxz -o file_{#}.tar.xz allcaps-1-1 allcaps-2-1
+test -f file_1.tar.xz && test -f file_2.tar.xz
+rm -rf *.tar.xz
+
+static-get -fxz -o file_{#}.tar.xz allcaps-1-1 allcaps-2-1
+static-get -fxz allcaps-1-1 allcaps-2-1
+test X"$(md5sum allcaps-1-1.tar.xz|awk '{print $1}')" = X"$(md5sum file_1.tar.xz|awk '{print $1}')"
+test X"$(md5sum allcaps-2-1.tar.xz|awk '{print $1}')" = X"$(md5sum file_2.tar.xz|awk '{print $1}')"
+rm -rf *.tar.xz
+@end
+
+# vim: set ts=8 sw=4 tw=0 ft=sh :
