@@ -1,5 +1,7 @@
 ## About
 
+[![Build Status](https://travis-ci.org/minos-org/minos-static.png?branch=master)](https://travis-ci.org/minos-org/minos-static)
+
 Linux static linking is hard, in most cases `-static` won't suffice, and you'll end installing (or building) a static toolchain to compile and link statically all the dependencies of your target program (and the program itself).
 
 There exist several projects who aim to fix this by providing easy to follow recipes, there is however still the need to compile a lot of code, this repository define meta-recipes for building all available packages and publish them to http://s.minos.io , so the process can be reduced to:
