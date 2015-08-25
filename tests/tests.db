@@ -32,6 +32,7 @@ test X"$(static-get -v -q 2>&1|head -1)"               = X"static-get: missing a
 test X"$(static-get --verbose 2>&1|head -1)"           = X"static-get: missing arguments"
 
 test "$(static-get -s allcaps 2>&1|wc -l)" -gt "1"
+test "$(static-get -s 2>&1|wc -l)" -gt "1"
 test "$(static-get -s laksdjlaskjdlaksjdlakjsl 2>&1|wc -l)" -eq "0"
 
 test X"$(static-get -f gz allcaps-1-1 2>&1)" = X"allcaps-1-1.tar.gz"
@@ -72,6 +73,10 @@ rm -rf *.tar.xz
 
 static-get -f xz allcaps-1-1
 static-get -f xz -o- allcaps-1-1 > file.tar.xz
+test X"$(md5sum allcaps-1-1.tar.xz|awk '{print $1}')" = X"$(md5sum file.tar.xz|awk '{print $1}')"
+rm -rf file.tar.xz && static-get -f xz --output - allcaps-1-1 > file.tar.xz
+test X"$(md5sum allcaps-1-1.tar.xz|awk '{print $1}')" = X"$(md5sum file.tar.xz|awk '{print $1}')"
+rm -rf file.tar.xz && static-get -f xz --output- allcaps-1-1 > file.tar.xz
 test X"$(md5sum allcaps-1-1.tar.xz|awk '{print $1}')" = X"$(md5sum file.tar.xz|awk '{print $1}')"
 rm -rf *.tar.xz
 

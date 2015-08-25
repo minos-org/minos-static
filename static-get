@@ -352,14 +352,15 @@ for arg; do #parse options
         '-o'|'--output')
             if [ "${#}" -gt "1" ]; then
                 case "${2}" in
-                    -*) printf "%s\\n" "Option '${arg}' requires a parameter"; _usage ;;
+                    '-') : ;;
+                     -*) printf "%s\\n" "Option '${arg}' requires a parameter"; _usage ;;
                 esac
                 shift; output_fname="${1}"; global_output="1"; [ "${1}" ] && shift
             else
                 printf "%s\\n" "Option '${arg}' requires a parameter"; _usage
             fi ;;
-        -o*) output_fname="${1#-o}"; shift; global_output="1"       ;;
-        --output*) output_fname="${1#-o}"; shift; global_output="1" ;;
+        -o*) output_fname="${1#-o}"; shift; global_output="1" ;;
+        --output*) output_fname="${1#--output}"; shift; global_output="1" ;;
         '-s'|'--search')
             if [ "${#}" -gt "1" ]; then
                 shift; search_pattern="${1}"; [ "${1}" ] && shift
@@ -424,8 +425,9 @@ for arg; do #parse options
         -f*) compress_format="${1#-f}"; shift ;;
         --format*) compress_format="${1#--format}"; shift ;;
         -l|--clean-cache) rm -rf "/tmp/${progname_static}".* && \
-                       [ -z "${quiet}" ] && printf "%s\\n" "Cache cleared successfully" || :
-                       exit ;;
+            [ -z "${quiet}" ] && printf "%s\\n" "Cache cleared successfully"
+            exit ;;
+        '-') : ;; #special stdout character
         -*) printf "%s\\n" "${progname}: unrecognized option '${arg}'" >&2; _usage ;;
     esac
 done
