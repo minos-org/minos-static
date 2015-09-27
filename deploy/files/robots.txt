@@ -6,3 +6,9 @@ Disallow: /
 
 User-agent: spbot
 Disallow: /
+
+User-agent: Baiduspider
+Disallow: /
+
+User-agent: Slurp
+Disallow: /
