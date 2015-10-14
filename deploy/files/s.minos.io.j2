@@ -11,6 +11,7 @@ server {
         }
         #blacklist certain user-agents
         if ($http_user_agent ~* (Baiduspider|researchscan|SeznamBot|InfoPath|zgrab|nmap)) {
+            access_log off;
             return 403;
         }
         autoindex on;
