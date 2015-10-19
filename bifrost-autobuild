@@ -5,6 +5,9 @@ bdir="$(cd "$(dirname "${0}")" && pwd)"
 alert_mails="m#%#javier.io"
 PS4="> "
 
+#crontab jobs run in a very sparse environment
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin:/sbin"
+
 _basename()
 {
     [ -z "${1}" ] && return 1 || _basename__name="${1}"
