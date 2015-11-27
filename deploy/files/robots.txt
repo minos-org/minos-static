@@ -12,3 +12,6 @@ Disallow: /
 
 User-agent: Slurp
 Disallow: /
+
+User-agent: AhrefsBot
+Disallow: /
