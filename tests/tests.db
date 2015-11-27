@@ -7,7 +7,7 @@ static-get -n ;   test X"${?}"              = X"1"
 static-get -m ;   test X"${?}"              = X"1"
 static-get -a ;   test X"${?}"              = X"1"
 static-get -f ;   test X"${?}"              = X"1"
-static-get -c ;   test X"${?}"              = X"1"
+static-get -k ;   test X"${?}"              = X"1"
 static-get -t ;   test X"${?}"              = X"1"
 static-get --cui; test X"${?}"              = X"1"
 test X"$(static-get -h 2>&1|head -1)"                  = X"Usage: static-get [OPTION]... PACKAGE ..."
@@ -23,7 +23,7 @@ test X"$(static-get -a 2>&1|head -1)"                  = X"Option '-a' requires 
 test X"$(static-get --arch 32 2>&1|head -1)"           = X"static-get: missing arguments"
 test X"$(static-get -f 2>&1|head -1)"                  = X"Option '-f' requires a parameter"
 test X"$(static-get --format gz 2>&1|head -1)"         = X"static-get: missing arguments"
-test X"$(static-get -c 2>&1|head -1)"                  = X"Option '-c' requires a parameter"
+test X"$(static-get -k 2>&1|head -1)"                  = X"Option '-k' requires a parameter"
 test X"$(static-get --checksum md5 2>&1|head -1)"      = X"static-get: missing arguments"
 test X"$(static-get -t 2>&1|head -1)"                  = X"Option '-t' requires a parameter"
 test X"$(static-get --distro misc 2>&1|head -1)"       = X"static-get: missing arguments"
@@ -58,8 +58,8 @@ test ! -f allcaps-1-1.tar.gz && rm -rf test
 test X"$(static-get -fxz allcaps-1-1 2>&1)" = X"allcaps-1-1.tar.xz"
 test -f allcaps-1-1.tar.xz && rm -rf allcaps-1-1.tar.xz
 
-test "$(static-get -c md5    -s allcaps-1-1 2>&1 | cut -d: -f2 | tr -d '\n' | wc -c)" -eq "32"
-test "$(static-get -c sha512 -s allcaps-1-1 2>&1 | cut -d: -f2 | tr -d '\n' | wc -c)" -eq "128"
+test "$(static-get -k md5    -s allcaps-1-1 2>&1 | cut -d: -f2 | tr -d '\n' | wc -c)" -eq "32"
+test "$(static-get -k sha512 -s allcaps-1-1 2>&1 | cut -d: -f2 | tr -d '\n' | wc -c)" -eq "128"
 
 static-get -f xz allcaps-1-1 allcaps-2-1
 test -f allcaps-1-1.tar.xz && test -f allcaps-2-1.tar.xz
