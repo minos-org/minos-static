@@ -7,26 +7,30 @@
 
 _usage()
 {
-    printf "%b\\n" "Usage: ${progname} [OPTION]... PACKAGE ..." >&2
-    printf "%b\\n" "Retrieve static linux binaries from s.minos.io and mirrors." >&2
-    printf "\\n" >&2
-    printf "%b\\n" "  -d, --download [dir]        write in the specified directory" >&2
-    printf "%b\\n" "  -o, --output [file]         write to file" >&2
-    printf "%b\\n" "  -s, --search [pattern]      search packages by pattern" >&2
-    printf "%b\\n" "  -x, --extract               extract after download" >&2
-    printf "%b\\n" "  -n, --dry-run               perform a trial run with no changes made" >&2
-    printf "%b\\n" "  -c, --clean-cache           remove temporal files" >&2
-    printf "\\n" >&2
-    printf "%b\\n" "  -m, --mirror [s.minos.io]   set mirror" >&2
-    printf "%b\\n" "  -a, --arch   [x86_64|i686]  set architecture" >&2
-    printf "%b\\n" "  -f, --format [gz|bz2|xz]    set compress format" >&2
-    printf "%b\\n" "  -k, --checksum [sha512|md5] set checksum" >&2
-    printf "%b\\n" "  -t, --distro [all|bifrost|morpheus|rlsd2|misc] set distro" >&2
-    printf "\\n" >&2
-    printf "%b\\n" "  -v, --verbose               turn on verbose mode" >&2
-    printf "%b\\n" "  -q, --quiet                 suppress non-error messages" >&2
-    printf "%b\\n" "  -h, --help                  show this message and exit" >&2
-    exit 1
+    printf "%b\\n" "Usage: ${progname} [OPTION]... PACKAGE ..."
+    printf "%b\\n" "Retrieve static linux binaries from s.minos.io and mirrors."
+    printf "\\n"
+    printf "%b\\n" "  -d, --download [dir]        write in the specified directory"
+    printf "%b\\n" "  -o, --output [file]         write to file"
+    printf "%b\\n" "  -s, --search [pattern]      search packages by pattern"
+    printf "%b\\n" "  -x, --extract               extract after download"
+    printf "%b\\n" "  -n, --dry-run               perform a trial run with no changes made"
+    printf "%b\\n" "  -c, --clean-cache           remove temporal files"
+    printf "\\n"
+    printf "%b\\n" "  -m, --mirror [s.minos.io]   set mirror"
+    printf "%b\\n" "  -a, --arch   [x86_64|i686]  set architecture"
+    printf "%b\\n" "  -f, --format [gz|bz2|xz]    set compress format"
+    printf "%b\\n" "  -k, --checksum [sha512|md5] set checksum"
+    printf "%b\\n" "  -t, --distro [all|bifrost|morpheus|rlsd2|misc] set distro"
+    printf "\\n"
+    printf "%b\\n" "  -v, --verbose               turn on verbose mode"
+    printf "%b\\n" "  -q, --quiet                 suppress non-error messages"
+    printf "%b\\n" "  -h, --help                  show this message and exit"
+}
+
+_die() {
+    [ -z "${1}" ] || printf "%s\\n" "${*}" >&2
+    _usage; >&2; exit 1
 }
 
 _basename()
@@ -329,11 +333,11 @@ if [ ! -t 0 ]; then
     set -- "${@}" $(cat)
 fi
 
-[ "${#}" -eq "0" ] && _usage
+[ "${#}" -eq "0" ] && _die
 
 for arg; do #parse options
     case "${arg}" in
-        -h|--help)    _usage ;;
+        -h|--help)    _usage && exit ;;
         -q|--quiet)   quiet="1";   shift ;;
         -v|--verbose) verbose="1"; shift ;;
         -x|--extract) extract="1"; shift ;;
@@ -341,11 +345,11 @@ for arg; do #parse options
         '-d'|'--download')
             if [ "${#}" -gt "1" ]; then
                 case "${2}" in
-                    -*) printf "%s\\n" "Option '${arg}' requires a parameter"; _usage ;;
+                    -*) _die "Option '${arg}' requires a parameter";;
                 esac
                 shift; directory="${1}"; [ "${1}" ] && shift
             else
-                printf "%s\\n" "Option '${arg}' requires a parameter"; _usage
+                _die "Option '${arg}' requires a parameter"
             fi ;;
         -d*) directory="${1#-d}"; shift ;;
         --download*) directory="${1#--download}"; shift ;;
@@ -353,11 +357,11 @@ for arg; do #parse options
             if [ "${#}" -gt "1" ]; then
                 case "${2}" in
                     '-') : ;;
-                     -*) printf "%s\\n" "Option '${arg}' requires a parameter"; _usage ;;
+                     -*) _die "Option '${arg}' requires a parameter" ;;
                 esac
                 shift; output_fname="${1}"; global_output="1"; [ "${1}" ] && shift
             else
-                printf "%s\\n" "Option '${arg}' requires a parameter"; _usage
+                _die "Option '${arg}' requires a parameter"
             fi ;;
         -o*) output_fname="${1#-o}"; shift; global_output="1" ;;
         --output*) output_fname="${1#--output}"; shift; global_output="1" ;;
@@ -372,55 +376,55 @@ for arg; do #parse options
         '-a'|'--arch')
             if [ "${#}" -gt "1" ]; then
                 case "${2}" in
-                    -*) printf "%s\\n" "Option '${arg}' requires a parameter"; _usage ;;
+                    -*) _die "Option '${arg}' requires a parameter" ;;
                 esac
                 shift; arch="${1}"; [ "${1}" ] && shift
             else
-                printf "%s\\n" "Option '${arg}' requires a parameter"; _usage
+                _die "Option '${arg}' requires a parameter"
             fi ;;
         -a*) arch="${1#-a}"; shift ;;
         --arch*) arch="${1#--arch}"; shift ;;
         '-m'|'--mirror')
             if [ "${#}" -gt "1" ]; then
                 case "${2}" in
-                    -*) printf "%s\\n" "Option '${arg}' requires a parameter"; _usage ;;
+                    -*) _die "Option '${arg}' requires a parameter" ;;
                 esac
                 shift; mirror="${1}"; [ "${1}" ] && shift
             else
-                printf "%s\\n" "Option '${arg}' requires a parameter"; _usage
+                _die "Option '${arg}' requires a parameter"
             fi ;;
         -m*) mirror="${1#-m}"; shift ;;
         --mirror*) mirror="${1#--mirror}"; shift ;;
         '-k'|'--checksum')
             if [ "${#}" -gt "1" ]; then
                 case "${2}" in
-                    -*) printf "%s\\n" "Option '${arg}' requires a parameter"; _usage ;;
+                    -*) _die "Option '${arg}' requires a parameter" ;;
                 esac
                 shift; checksum="${1}"; [ "${1}" ] && shift
             else
-                printf "%s\\n" "Option '${arg}' requires a parameter"; _usage
+                _die "Option '${arg}' requires a parameter"
             fi ;;
         -k*) checksum="${1#-k}"; shift ;;
         --checksum*) checksum="${1#--checksum}"; shift ;;
         '-t'|'--distro')
             if [ "${#}" -gt "1" ]; then
                 case "${2}" in
-                    -*) printf "%s\\n" "Option '${arg}' requires a parameter"; _usage ;;
+                    -*) _die "Option '${arg}' requires a parameter" ;;
                 esac
                 shift; distro="${1}"; [ "${1}" ] && shift
             else
-                printf "%s\\n" "Option '${arg}' requires a parameter"; _usage
+                _die "Option '${arg}' requires a parameter"
             fi ;;
         -t*) distro="${1#-t}"; shift ;;
         --distro*) distro="${1#--distro}"; shift ;;
         '-f'|'--format')
             if [ "${#}" -gt "1" ]; then
                 case "${2}" in
-                    -*) printf "%s\\n" "Option '${arg}' requires a parameter"; _usage ;;
+                    -*) _die "Option '${arg}' requires a parameter" ;;
                 esac
                 shift; compress_format="${1}"; [ "${1}" ] && shift
             else
-                printf "%s\\n" "Option '${arg}' requires a parameter"; _usage
+                _die "Option '${arg}' requires a parameter"
             fi ;;
         -f*) compress_format="${1#-f}"; shift ;;
         --format*) compress_format="${1#--format}"; shift ;;
@@ -428,12 +432,12 @@ for arg; do #parse options
             [ -z "${quiet}" ] && printf "%s\\n" "Cache cleared successfully"
             exit ;;
         '-') : ;; #special stdout character
-        -*) printf "%s\\n" "${progname}: unrecognized option '${arg}'" >&2; _usage ;;
+        -*) _die "${progname}: unrecognized option '${arg}'" >&2 ;;
     esac
 done
 
 if [ -z "${search_pattern}" ]; then
-    [ "${#}" -eq "0" ] && { printf "%s\\n" "${progname}: missing arguments" >&2; _usage; }
+    [ "${#}" -eq "0" ] && _die "${progname}: missing arguments"
     _static_get "${@}"
 else
     _static_search "${search_pattern}"
