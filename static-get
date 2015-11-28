@@ -5,8 +5,7 @@
 #example: static-get git
 #git-1.8.2.1-3.tar.gz:sha512sum
 
-_usage()
-{
+_usage() {
     printf "%b\\n" "Usage: ${progname} [OPTION]... PACKAGE ..."
     printf "%b\\n" "Retrieve static linux binaries from s.minos.io and mirrors."
     printf "\\n"
@@ -33,8 +32,7 @@ _die() {
     _usage; >&2; exit 1
 }
 
-_basename()
-{
+_basename() {
     [ -z "${1}" ] && return 1 || _basename__name="${1}"
     [ -z "${2}" ] || _basename__suffix="${2}"
     case "${_basename__name}" in
@@ -48,8 +46,7 @@ _basename()
     printf "%s" "${_basename__name}"
 }
 
-_mkdir_p()
-{   #portable mkdir -p
+_mkdir_p() { #portable mkdir -p
     for _mkdir_p__dir; do
         _mkdir_p__IFS="${IFS}"
         IFS="/"
@@ -76,20 +73,17 @@ _mkdir_p()
     done; unset _mkdir_p__dir
 }
 
-_verbose()
-{
+_verbose() {
     [ -z "${1}" ] && return 1
     [ -n "${verbose}" ] && printf "%s\\n" "${*}" || :
 }
 
-_normal_msg()
-{
+_normal_msg() {
     [ -z "${1}" ] && return 1
     [ -n "${quiet}" ] || printf "%s\\n" "${*}"
 }
 
-_cat()
-{
+_cat() {
     [ -z "${1}" ] && return 1
     [ -z "${global_output}" ] && output_fname="$(_basename "${1}")" || {
         [ -z "${output_counter}" ] && output_counter="0"
@@ -109,8 +103,8 @@ _cat()
     printf "%s\\n" "${directory}/${output_fname}" | sed 's:\./::' | sed "s:{#}:${output_counter}:"
 }
 
-_get_available_distros()
-{   #$1 => mirror, eg: s.minos.io
+_get_available_distros() {
+    #$1 => mirror, eg: s.minos.io
     [ -z "${1}" ] && return 1
     bmirror="$(_basename "${1}")"
     [ -d /tmp/"${progname_static}.${bmirror}" ] || mkdir /tmp/"${progname_static}.${bmirror}"
@@ -126,8 +120,8 @@ _get_available_distros()
         /tmp/"${progname_static}.${bmirror}/index.html" 2>/dev/null
 }
 
-_get_available_archs()
-{   #$1 => mirror, eg: s.minos.io
+_get_available_archs() {
+    #$1 => mirror, eg: s.minos.io
     #$2 => distro, eg: bifrost
     [ -z "${2}" ] && return 1
     [ -d /tmp/"${progname_static}.${1}" ]      || mkdir /tmp/"${progname_static}.${1}"
@@ -144,8 +138,8 @@ _get_available_archs()
     awk  -F'"' '/href/ {if ($2 != "../") print $2}' /tmp/"${progname_static}.${1}/${2}/index.html" 2>/dev/null
 }
 
-_get_package_indexes()
-{   #$1 => mirror, eg: s.minos.io
+_get_package_indexes() {
+    #$1 => mirror, eg: s.minos.io
     [ -z "${1}" ] && return 1
     [ -z "${available_distros}" ] && available_distros="$(_get_available_distros "${1}")"
     for gdistro in ${available_distros}; do
@@ -163,13 +157,12 @@ _get_package_indexes()
     done
 }
 
-_set_defaults()
-{
-    [ -z "${mirror}" ]         && mirror="s.minos.io"
-    [ -z "${distro}" ]         && distro="all"
-    [ -z "${arch}" ]           && arch="$(uname -m)"
-    [ -z "${directory}" ]      && directory="."
-    [ X"${output}" = X"-" ]    && directory="."
+_set_defaults() {
+    [ -z "${mirror}" ]      && mirror="s.minos.io"
+    [ -z "${distro}" ]      && distro="all"
+    [ -z "${arch}" ]        && arch="$(uname -m)"
+    [ -z "${directory}" ]   && directory="."
+    [ X"${output}" = X"-" ] && directory="."
 
     if [ -z "${dry_run}" ]; then
         _mkdir_p "${directory}" || { printf "%s\\n" "unable to create ${directory}, exiting"; exit 1; }
@@ -236,8 +229,7 @@ _set_defaults()
     fi
 }
 
-_static_search()
-{
+_static_search() {
     [ -z "${1}" ] && return 1 || search_pattern="${1}"
     _set_defaults
     _get_package_indexes "${mirror}"
@@ -264,8 +256,7 @@ _static_search()
     fi
 }
 
-_static_get()
-{
+_static_get() {
     [ -z "${1}" ] && return 1 || _set_defaults
     for package; do
         #extra_params="-m ${mirror} -a ${arch} -f ${compress_format} -c ${checksum} -t ${distro}"
