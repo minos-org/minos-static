@@ -8,8 +8,7 @@ PS4="> "
 #crontab jobs run in a very sparse environment
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin:/sbin"
 
-_basename()
-{
+_basename() {
     [ -z "${1}" ] && return 1 || _basename__name="${1}"
     [ -z "${2}" ] || _basename__suffix="${2}"
     case "${_basename__name}" in
@@ -26,8 +25,7 @@ _basename()
     printf "%s\\n" "${_basename__name}"
 }
 
-_warning()
-{
+_warning() {
     [ -z "${1}" ] && return 1
     printf "%b\\n" "${*}" >&2
     if command -v "mailgun" >/dev/null; then
@@ -42,8 +40,7 @@ _warning()
     fi
 }
 
-_die()
-{
+_die() {
     [ -z "${1}" ] && return 1
     printf "%b\\n" "${*}" >&2
     if command -v "mailgun" >/dev/null; then
@@ -59,8 +56,7 @@ _die()
     exit 1
 }
 
-_clone()
-{
+_clone() {
     [ -z "${1}" ] && return 1
     [ -z "${2}" ] && _clone__target="${bdir}/$(_basename "${1}")" || _clone__target="${2}"
     _clone__stdout="$(tempfile)"
@@ -79,8 +75,7 @@ _clone()
     rm -f "${_clone__stdout}"
 }
 
-_diff_recipes()
-{
+_diff_recipes() {
     [ -z "${2}" ] && return 1
     mkfifo "/tmp/${progname}.fifo1"
     mkfifo "/tmp/${progname}.fifo2"
@@ -96,13 +91,11 @@ _diff_recipes()
     fi
 }
 
-_repackage()
-{
+_repackage() {
     [ -z "${2}" ] && return 1
     _repackage__bname="$(_basename "${1}" .tar.gz)"
     _repackage__dname="$(dirname   "${1}")"
-    _repackage_init()
-    {
+    _repackage_init() {
         [ -d "${_repackage__dname}/${_repackage__bname}" ] && return 0
         (cd  "${_repackage__dname}" && mkdir "${_repackage__bname}" && tar xf "${1}" -C "${_repackage__bname}")
     }

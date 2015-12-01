@@ -8,8 +8,7 @@ PS4="> "
 #crontab jobs run in a very sparse environment
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin:/sbin"
 
-_basename()
-{
+_basename() {
     [ -z "${1}" ] && return 1 || _basename__name="${1}"
     [ -z "${2}" ] || _basename__suffix="${2}"
     case "${_basename__name}" in
@@ -26,8 +25,8 @@ _basename()
     printf "%s\\n" "${_basename__name}"
 }
 
-_strreplace()
-{  #replace param in string, return 1 on failure
+_strreplace() {
+    #replace param in string, return 1 on failure
     #http://www.unix.com/shell-programming-and-scripting/124160-replace-word-string.html
     _strreplace__orig="${1}"
     [ -n "${3}" ] || return 1 #nothing to search for: error
@@ -43,8 +42,7 @@ _strreplace()
     printf "%s" "${_strreplace__orig}"
 }
 
-_warning()
-{
+_warning() {
     [ -z "${1}" ] && return 1
     printf "%b\\n" "${*}" >&2
     if command -v "mailgun" >/dev/null; then
@@ -59,8 +57,7 @@ _warning()
     fi
 }
 
-_die()
-{
+_die() {
     [ -z "${1}" ] && return 1
     printf "%b\\n" "${*}" >&2
     if command -v "mailgun" >/dev/null; then
@@ -76,8 +73,7 @@ _die()
     exit 1
 }
 
-_clone()
-{
+_clone() {
     [ -z "${1}" ] && return 1
     [ -z "${2}" ] && _clone__untarget="${bdir}/$(_basename "${1}")" || _clone__untarget="${2}"
     _clone__stdout="$(tempfile)"
@@ -95,8 +91,7 @@ _clone()
     rm -f "${_clone__stdout}"
 }
 
-_wget()
-{
+_wget() {
     [ -z "${1}" ] && return 1
     [ -z "${2}" ] && _wget__untarget="${bdir}/$(_basename "${1}")" || _wget__untarget="${2}"
     _wget__stdout="$(tempfile)"
@@ -112,8 +107,7 @@ _wget()
     rm -f "${_wget__stdout}"
 }
 
-_untar()
-{
+_untar() {
     [ -z "${1}" ] && return 1
     [ -z "${2}" ] && _untar__target="${bdir}/$(_basename "${1}")" || _untar__target="${2}"
     _untar__stdout="$(tempfile)"
@@ -128,8 +122,7 @@ _untar()
     rm -f "${_untar__stdout}"
 }
 
-_cp()
-{
+_cp() {
     [ -z "${1}" ] && return 1
     [ -z "${2}" ] && _cp_target="${bdir}/$(_basename "${1}")" || _cp_target="${2}"
     _cp__stdout="$(tempfile)"
@@ -144,8 +137,7 @@ _cp()
     rm -f "${_cp__stdout}"
 }
 
-_install_ubuntu_pkg()
-{
+_install_ubuntu_pkg() {
     cd "${bdir}/rlsd2-build/"
     _ibpkg__stdout="$(tempfile)"
     for _install_ubuntu_pkg__pkg; do
@@ -157,13 +149,11 @@ _install_ubuntu_pkg()
     done
 }
 
-_repackage()
-{
+_repackage() {
     [ -z "${2}" ] && return 1
     _repackage__bname="$(_basename "${1}" .tar.gz)"
     _repackage__dname="/tmp/"${progname}".repackage"
-    _repackage_init()
-    {
+    _repackage_init() {
         mkdir -p "${_repackage__dname}"
         [ -d "${_repackage__dname}/${_repackage__bname}" ] && return 0
         (cd  "${_repackage__dname}" && mkdir "${_repackage__bname}" && tar xf "${1}" -C "${_repackage__bname}")
