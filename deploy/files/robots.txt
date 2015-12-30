@@ -15,3 +15,6 @@ Disallow: /
 
 User-agent: AhrefsBot
 Disallow: /
+
+User-agent: Yandex
+Disallow: /
