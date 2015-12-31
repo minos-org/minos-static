@@ -262,7 +262,7 @@ rm -rf "${bdir}"/rlsd2-build/native-i386/var/lib/rlsd2.rules.reference
 _cp "${bdir}"/rlsd2-build/native-i386/var/lib/rlsd2/rules "${bdir}"/rlsd2-build/native-i386/var/lib/rlsd2.rules.reference 
 
 #repack them in bz2 and xz archives
-printf "%s\\n" "creating archives ..."; _recipe__stdout="$(tempfile)"
+printf "%s\\n" "creating archives ..."
 mkdir -p "${bdir}"/rlsd2-build/repackage-i686
 for archive in "${bdir}"/rlsd2-build/native-i386/var/spool/rlsd2-pkgs/*.tar.gz; do
     [ ! -f "${archive}" ] && continue

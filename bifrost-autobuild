@@ -167,7 +167,7 @@ umount "${bdir}"/bifrost-build/mini-native-i586/proc "${bdir}"/bifrost-build/min
 [ ! -f "${bdir}"/bifrost/lock ] && touch "${bdir}"/bifrost/lock
 
 #copy packages
-printf "%s\\n" "creating archives ..."; _recipe__stdout="$(tempfile)"
+printf "%s\\n" "creating archives ..."
 pkgs="0"; for archive in "${bdir}"/bifrost-build/mini-native-i586/var/spool/pkg/*.tar.gz; do
     pkgs="$(($pkgs + 1))"
     barchive="$(_basename "${archive}")"

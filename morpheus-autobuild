@@ -311,7 +311,7 @@ umount "${bdir}"/morpheus-build/mini-native-i586/proc "${bdir}"/morpheus-build/m
 [ ! -f "${bdir}"/morpheus/lock ] && touch "${bdir}"/morpheus/lock
 
 #repack them in bz2 and xz archives
-printf "%s\\n" "creating archives ..."; _recipe__stdout="$(tempfile)"
+printf "%s\\n" "creating archives ..."
 mkdir -p "${bdir}"/morpheus-build/repackage-i686
 for archive in "${bdir}"/morpheus-build/mini-native-i586/var/spool/morpheus-pkgs/*.pkg.tgz; do
     [ ! -f "${archive}" ] && continue
