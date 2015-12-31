@@ -3,6 +3,14 @@ server {
     server_name {{ domain }} static.minos.io;
     root /var/www/{{ domain }}/;
 
+    location ~ ^/cgi-bin { return 444; log_not_found off; }
+    location ~ \.(?:php|aspx|asp)$ { return 444; log_not_found off; }
+    location ~ php\.cgi$ { return 444; log_not_found off; }
+    location ~ ^/images/stories { return 444; log_not_found off; }
+    location ~ myadmin { return 444; log_not_found off; }
+
+    if ($request_method !~ ^(GET|HEAD|POST)$ ) { return 444; log_not_found off; }
+
     location / {
         #catch status health check requests
         if ( $http_user_agent ~* 'StatusCake' ) {
@@ -10,9 +18,9 @@ server {
             return 200 'Service OK';
         }
         #blacklist certain user-agents
-        if ($http_user_agent ~* (Baiduspider|researchscan|SeznamBot|InfoPath|zgrab|nmap)) {
+        if ($http_user_agent ~* (Baiduspider|researchscan|SeznamBot|InfoPath|zgrab|nmap|spbot)) {
             access_log off;
-            return 403;
+            return 444;
         }
         autoindex on;
         autoindex_exact_size off;
@@ -30,10 +38,5 @@ server {
         #with bare minimal systems like busybox wget
         #rewrite ^/.* https://raw.githubusercontent.com/minos-org/minos-static/master/static-get permanent;
         rewrite ^/.* http://cdn.rawgit.com/minos-org/minos-static/da85d3e8995ac793dd26900d536444169183c78f/static-get permanent;
-    }
-
-    if ($request_method !~ ^(GET|HEAD|POST)$ )
-    {
-        return 444;
     }
 }
