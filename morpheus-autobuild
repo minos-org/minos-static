@@ -78,7 +78,6 @@ _clone() {
     [ -z "${2}" ] && _clone__untarget="${bdir}/$(_basename "${1}")" || _clone__untarget="${2}"
     _clone__stdout="$(tempfile)"
 
-
     printf "%s\\n" "cloning: ${1}"
     if [ -d "${_clone__untarget}" ]; then
          (cd "${_clone__untarget}" && git pull) > "${_clone__stdout}" 2>&1
