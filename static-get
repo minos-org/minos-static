@@ -300,8 +300,9 @@ _static_get() {
                     fi
                     break
                 else
-                    printf "'%s' file doesn't match hashsum => '%s', clean the cache (-l) and try again\\n" \
-                        "${directory}/${static_get_bfile}" "${static_get_hash}" | sed 's:\./::'
+                    printf "'%s' doesn't match hashsum => '%s', clean the cache (%s) and try again\\n" \
+                        "${directory}/${static_get_bfile}" "${static_get_hash}" \
+                        "$(_usage | awk '/remove temporal/ {sub(/,/, ""); print $1 "|" $2}')" | sed 's:\./::'
                     rm -f /tmp/static-get."${bmirror}/${static_get_bfile}"
                 fi
             else
