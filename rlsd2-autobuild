@@ -221,7 +221,10 @@ _install_ubuntu_pkg $(wget --no-check-certificate -qO- \
 mkdir -p "${bdir}/rlsd2-build/native-i386/var/lib/rlsd2"
 mkdir -p "${bdir}/rlsd2-build/native-i386/var/spool/rlsd2-pkgs"
 rsync -aq --update "${bdir}/rlsd2-build/upstream-rlsd2/" "${bdir}/rlsd2-build/native-i386/var/lib/rlsd2/" || \
-    _die  "rlsd2 setup failed"
+    _die  "rlsd2 setup failed (rsync upstream-rlsd2)"
+#remove previous patched files
+rsync -aqI --delete "${bdir}/rlsd2-build/upstream-rlsd2/rules/" "${bdir}/rlsd2-build/native-i386/var/lib/rlsd2/rules/" || \
+    _die  "rlsd2 setup failed (rsync rules)"
 printf "%s\\n" "check_certificate = off" > "${bdir}/rlsd2-build/native-i386/etc/wgetrc"
 
 #apply minos-rlsd2 delta
@@ -271,7 +274,7 @@ umount "${bdir}"/rlsd2-build/native-i386/proc "${bdir}"/rlsd2-build/native-i386/
 
 #create reference
 rm -rf "${bdir}"/rlsd2-build/native-i386/var/lib/rlsd2.rules.reference
-_cp "${bdir}"/rlsd2-build/native-i386/var/lib/rlsd2/rules "${bdir}"/rlsd2-build/native-i386/var/lib/rlsd2.rules.reference 
+_cp "${bdir}"/rlsd2-build/native-i386/var/lib/rlsd2/rules "${bdir}"/rlsd2-build/native-i386/var/lib/rlsd2.rules.reference
 
 #repack them in bz2 and xz archives
 printf "%s\\n" "creating archives ..."
@@ -305,6 +308,7 @@ for archive in "${bdir}"/rlsd2-build/repackage-i686/*.tar.gz  \
 done
 
 #create index
+printf "%s\\n" "creating index ...";
 (cd "${bdir}"/rlsd2/i686/ && rm -rf sha512sum.* md5sum.*)
 (cd "${bdir}"/rlsd2/i686/ && shasum -a 512 *tar* > sha512sum.txt 2>/dev/null)
 (cd "${bdir}"/rlsd2/i686/ && md5sum *tar* > md5sum.txt 2>/dev/null)
