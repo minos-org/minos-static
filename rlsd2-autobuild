@@ -228,6 +228,18 @@ printf "%s\\n" "check_certificate = off" > "${bdir}/rlsd2-build/native-i386/etc/
 rsync -aq "${bdir}/rlsd2-build/minos-rlsd2/" "${bdir}/rlsd2-build/native-i386/var/lib/rlsd2/" || \
     _die  "rlsd2 delta setup failed"
 
+#apply patches
+for delta_patch in "${bdir}"/rlsd2-build/native-i386/var/lib/rlsd2/patches/*.patch; do
+    [ -f "${delta_patch}" ] || continue
+    _patch_outout="$(tempfile)"
+    basename_delta_patch="$(_basename "${delta_patch}" .patch)"
+    printf "%s\\n" "applying patch to: ${basename_delta_patch}"
+    (cd "${bdir}"/rlsd2-build/native-i386/var/lib/rlsd2/rules/"${basename_delta_patch}" &&
+    patch < "${delta_patch}") > "${_patch_outout}" 2>&1 ||
+    _warning "${basename_delta_patch} patch failed" "\\n$(tail -100 "${_patch_outout}")"
+    rm -rf "${_patch_outout}"
+done
+
 #init, https://github.com/dimkr/rlsd2/blob/master/scripts/build_all
 (cd "${bdir}/rlsd2-build/native-i386/var/lib/rlsd2/" && ./scripts/gen_deps > Makefile.deps)
 
