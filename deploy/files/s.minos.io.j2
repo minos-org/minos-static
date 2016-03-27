@@ -30,13 +30,13 @@ server {
         #https://s.minos.io/s should redirect to a https site, meanwhile http is kept for compatibility
         #with bare minimal systems like busybox wget
         #rewrite ^/.* https://raw.githubusercontent.com/minos-org/minos-static/master/static-get permanent;
-        rewrite ^/.* http://cdn.rawgit.com/minos-org/minos-static/da85d3e8995ac793dd26900d536444169183c78f/static-get permanent;
+        rewrite ^/.* http://cdn.rawgit.com/minos-org/minos-static/9ba617283a46d439398042e8597934d24e514b4a/static-get permanent;
     }
 
     location /s {
         #https://s.minos.io/s should redirect to a https site, meanwhile http is kept for compatibility
         #with bare minimal systems like busybox wget
         #rewrite ^/.* https://raw.githubusercontent.com/minos-org/minos-static/master/static-get permanent;
-        rewrite ^/.* http://cdn.rawgit.com/minos-org/minos-static/da85d3e8995ac793dd26900d536444169183c78f/static-get permanent;
+        rewrite ^/.* http://cdn.rawgit.com/minos-org/minos-static/9ba617283a46d439398042e8597934d24e514b4a/static-get permanent;
     }
 }
