@@ -230,26 +230,27 @@ _set_defaults() {
 }
 
 _static_search() {
-    [ -z "${1}" ] && return 1 || search_pattern="${1}"
+    [ -z "${1}" ] && return 1 || _ssearch__pattern="${1}"
+
     _set_defaults
     _get_package_indexes "${mirror}"
-
     [ -z "${bmirror}" ] && bmirror="$(_basename "${mirror}")"
-    simple_search_pattern="$(printf "%s" "${search_pattern}" | \
+
+    _ssearch__sanitazed_pattern="$(printf "%s" "${_ssearch__pattern}" | \
     tr -cd 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890.-')"
     [ "${distro}" = "all" ] && distro=""
 
-    _static_search_result="$(find /tmp/"${progname_static}.${bmirror}"/ -iname "${checksum}sum.txt" | \
-        grep "${distro}" | xargs grep "${simple_search_pattern}" | grep "${arch}" | \
-        grep "tar.${compress_format}" | sed "s:/tmp/static-get.::g;s:/${checksum}sum.txt\:: :g")"
+    _ssearch__result="$(find /tmp/"${progname_static}.${bmirror}"/ -iname "${checksum}sum.txt"   | \
+        grep -- "${distro}" | xargs grep -- "${_ssearch__sanitazed_pattern}" | grep -- "${arch}" | \
+        grep -- "tar.${compress_format}" | sed "s:/tmp/static-get.::g;s:/${checksum}sum.txt\:: :g")"
 
-    if [ "${_static_search_result}" ]; then
+    if [ "${_ssearch__result}" ]; then
         if [ "${verbose}" ]; then
-            printf "%s\\n" "${_static_search_result}" | awk '{printf "%s %s %s\n", $3, $2, $1}'   | \
-                grep "${search_pattern}" | awk '{printf "%s:%s:%s\n", $3, $1, $2}'
+            printf "%s\\n" "${_ssearch__result}" | awk '{printf "%s %s %s\n", $3, $2, $1}' | \
+                grep -- "${_ssearch__pattern}"   | awk '{printf "%s:%s:%s\n", $3, $1, $2}'
         else
-            printf "%s\\n" "${_static_search_result}" | awk '{printf "%s:%s\n", $3, $2}' | \
-                grep "${search_pattern}" | cat
+            printf "%s\\n" "${_ssearch__result}" | awk '{printf "%s:%s\n", $3, $2}' | \
+                grep -- "${_ssearch__pattern}"   | cat
         fi
     else
         return 1
@@ -260,15 +261,15 @@ _static_get() {
     [ -z "${1}" ] && return 1 || _set_defaults
     for package; do
         #extra_params="-m ${mirror} -a ${arch} -f ${compress_format} -c ${checksum} -t ${distro}"
-        #static_get_file="$("${0}" ${extra_params} -v -n -s "^${package}" | sort -nr |head -1)"
-        static_get_file="$(verbose=1 dry_run=1 _static_search "^${package}" | sort -nr |head -1)"
-        [ -z "${static_get_file}" ] && _verbose "No matches for '${package}', skipping..." && continue
+        #_sget__file="$("${0}" ${extra_params} -v -n -s "^${package}" | sort -nr |head -1)"
+        _sget__file="$(verbose=1 dry_run=1 _static_search "^${package}" | sort -nr |head -1)"
+        [ -z "${_sget__file}" ] && _verbose "No matches for '${package}', skipping..." && continue
         [ -z "${bmirror}" ] && bmirror="$(_basename "${mirror}")"
 
-        static_get_hash="${static_get_file##*:}"
-        static_get_file="${static_get_file%:$static_get_hash}" #remove hash
-        static_get_file="$(printf "%s" "${static_get_file}" | tr ':' '/')"
-        static_get_bfile="$(_basename "${static_get_file}")"
+        _sget__hash="${_sget__file##*:}"
+        _sget__file="${_sget__file%:$_sget__hash}" #remove hash
+        _sget__file="$(printf "%s" "${_sget__file}" | tr ':' '/')"
+        _sget__bfile="$(_basename "${_sget__file}")"
 
         for i in 1 2; do #download on first run, write/extract on second
             if [ "${dry_run}" ]; then
@@ -280,37 +281,36 @@ _static_get() {
                     esac
                     printf "%s\\n" "${directory}/${output_fname}" | sed 's:\./::' | sed "s:{#}:${output_counter}:"
                 else
-                    printf "%s\\n" "${directory}/${static_get_bfile}" | sed 's:\./::'
-                    [ "${extract}" ] && printf "%s\\n" "${directory}/${static_get_bfile%%.tar*}/" | sed 's:\./::'
+                    printf "%s\\n" "${directory}/${_sget__bfile}" | sed 's:\./::'
+                    [ "${extract}" ] && printf "%s\\n" "${directory}/${_sget__bfile%%.tar*}/" | sed 's:\./::'
                 fi
                 break
             fi
 
-            if [ -f /tmp/static-get."${bmirror}/${static_get_bfile}" ]; then
-                static_get_hash_new="$($checksum_bin /tmp/static-get."${bmirror}/${static_get_bfile}" | awk '{print $1}')"
+            if [ -f /tmp/static-get."${bmirror}/${_sget__bfile}" ]; then
+                _sget__hash_new="$($checksum_bin /tmp/static-get."${bmirror}/${_sget__bfile}" | awk '{print $1}')"
 
-                if [ "${static_get_hash}" = "${static_get_hash_new}" ]; then
-                    _cat /tmp/"${progname_static}.${bmirror}/${static_get_bfile}"
+                if [ "${_sget__hash}" = "${_sget__hash_new}" ]; then
+                    _cat /tmp/"${progname_static}.${bmirror}/${_sget__bfile}"
 
                     if [ "${extract}" ]; then
-                        [ ! -d "${directory}/${static_get_bfile%%.tar*}" ] && mkdir "${directory}/${static_get_bfile%%.tar*}"
-                        (cd "${directory}/${static_get_bfile%%.tar*}" && \
-                        ${compress_bin} < "../${static_get_bfile}"  | tar xf -) && \
-                        printf "%s\\n" "${directory}/${static_get_bfile%%.tar*}/" | sed 's:\./::'
+                        [ ! -d "${directory}/${_sget__bfile%%.tar*}" ] && mkdir "${directory}/${_sget__bfile%%.tar*}"
+                        (cd "${directory}/${_sget__bfile%%.tar*}" && \
+                        ${compress_bin} < "../${_sget__bfile}"  | tar xf -) && \
+                        printf "%s\\n" "${directory}/${_sget__bfile%%.tar*}/" | sed 's:\./::'
                     fi
                     break
                 else
                     printf "'%s' doesn't match hashsum => '%s', clean the cache (%s) and try again\\n" \
-                        "${directory}/${static_get_bfile}" "${static_get_hash}" \
+                        "${directory}/${_sget__bfile}" "${_sget__hash}" \
                         "$(_usage | awk '/remove temporal/ {sub(/,/, ""); print $1 "|" $2}')" | sed 's:\./::'
-                    rm -f /tmp/static-get."${bmirror}/${static_get_bfile}"
+                    rm -f /tmp/static-get."${bmirror}/${_sget__bfile}"
                 fi
             else
-                (cd /tmp/static-get."${bmirror}/" && \
-                {
-                    $retriever_bin "${static_get_file}" >/dev/null 2>/dev/null || \
-                    $retriever_bin "http://${static_get_file}" >/dev/null 2>/dev/null
-                }
+                (cd /tmp/static-get."${bmirror}/" && {
+                    $retriever_bin "${_sget__file}" >/dev/null 2>/dev/null || \
+                    $retriever_bin "http://${_sget__file}" >/dev/null 2>/dev/null
+                    }
                 )
             fi
         done
@@ -359,7 +359,13 @@ for arg; do #parse options
         --output*) output_fname="${1#--output}"; shift; global_output="1" ;;
         '-s'|'--search')
             if [ "${#}" -gt "1" ]; then
-                shift; search_pattern="${1}"; [ "${1}" ] && shift
+                case "${1}" in
+                    -*) shift; for opt; do #use last parameter as search regex
+                            search_pattern="${opt}"
+                        done
+                        ;;
+                    *) shift; search_pattern="${1}"; [ "${1}" ] && shift ;;
+                esac
             else
                 search_pattern="."
             fi ;;

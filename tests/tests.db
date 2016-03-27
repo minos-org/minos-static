@@ -35,6 +35,10 @@ test "$(static-get -s allcaps 2>&1|wc -l)" -gt "1"
 test "$(static-get -s 2>&1|wc -l)" -gt "1"
 test "$(static-get -s laksdjlaskjdlaksjdlakjsl 2>&1|wc -l)" -eq "0"
 
+test "$(static-get -s -v allcaps 2>&1|wc -l)" -gt "1"
+test "$(static-get -s -v 2>&1|wc -l)" -gt "1"
+test "$(static-get -s -v laksdjlaskjdlaksjdlakjsl 2>&1|wc -l)" -eq "0"
+
 test X"$(static-get -f gz allcaps-1-1 2>&1)" = X"allcaps-1-1.tar.gz"
 test -f allcaps-1-1.tar.gz && rm -rf allcaps-1-1.tar.gz
 
