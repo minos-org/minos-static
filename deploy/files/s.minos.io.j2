@@ -13,6 +13,9 @@ server {
 
     location / {
         #catch status health check requests
+        if ( $http_user_agent ~* 'UptimeRobot' ) {
+            access_log off;
+        }
         if ( $http_user_agent ~* 'StatusCake' ) {
             access_log off;
             return 200 'Service OK';
@@ -30,13 +33,13 @@ server {
         #https://s.minos.io/s should redirect to a https site, meanwhile http is kept for compatibility
         #with bare minimal systems like busybox wget
         #rewrite ^/.* https://raw.githubusercontent.com/minos-org/minos-static/master/static-get permanent;
-        rewrite ^/.* http://cdn.rawgit.com/minos-org/minos-static/9ba617283a46d439398042e8597934d24e514b4a/static-get permanent;
+        rewrite ^/.* {{ cdn }} permanent;
     }
 
     location /s {
         #https://s.minos.io/s should redirect to a https site, meanwhile http is kept for compatibility
         #with bare minimal systems like busybox wget
         #rewrite ^/.* https://raw.githubusercontent.com/minos-org/minos-static/master/static-get permanent;
-        rewrite ^/.* http://cdn.rawgit.com/minos-org/minos-static/9ba617283a46d439398042e8597934d24e514b4a/static-get permanent;
+        rewrite ^/.* {{ cdn }} permanent;
     }
 }

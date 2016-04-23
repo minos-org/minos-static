@@ -4,6 +4,7 @@
    - port:      80
    - wwwroot:   /var/www/s.minos.io/
    - buildroot: /home/admin/minos-static
+   - cdn:       http://cdn.rawgit.com/minos-org/minos-static/9ba617283a46d439398042e8597934d24e514b4a/static-get
 
   tasks:
    - name: Add upstream stable nginx repository
