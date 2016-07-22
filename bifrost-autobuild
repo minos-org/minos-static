@@ -172,11 +172,12 @@ pkgs="0"; for archive in "${bdir}"/bifrost-build/mini-native-i586/var/spool/pkg/
     pkgs="$(($pkgs + 1))"
     barchive="$(_basename "${archive}")"
     [ -f "${bdir}"/bifrost/i686/"${barchive}" ] && continue
-    cp -p "${archive}" "${bdir}"/bifrost/i686/
+    cp -vp "${archive}" "${bdir}"/bifrost/i686/
     [ ! -f "${bdir}"/bifrost/i686/"${barchive}" ] && _die "couldn't copy ${archive} to "${bdir}"/bifrost/i686/ , full disk?"
 done
 
 #repack them, in bz2 and xz archives
+printf "%s\\n" "repackaging them in bz/xz ..."
 archive=""; for archive in "${bdir}"/bifrost/i686/*.tar.gz; do
     _repackage "${archive}" bz2
     _repackage "${archive}" xz
@@ -184,6 +185,7 @@ archive=""; for archive in "${bdir}"/bifrost/i686/*.tar.gz; do
 done
 
 (cd "${bdir}"/bifrost/i686/ && rm -rf sha512sum.* md5sum.*)
+printf "%s\\n" "creating sha/md5 checksums ..."
 (cd "${bdir}"/bifrost/i686/ && shasum -a 512 *tar* > sha512sum.txt 2>/dev/null)
 (cd "${bdir}"/bifrost/i686/ && md5sum *tar* > md5sum.txt 2>/dev/null)
 [ X"$(($pkgs * 3))" = X"$(wc -l "${bdir}"/bifrost/i686/sha512sum.txt|awk '{print $1}')" ] || \
