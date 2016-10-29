@@ -147,6 +147,7 @@ _install_bifrost_pkg() {
         _die "failed to install ${_install_bifrost_pkg__pkg} in the init environment\\n" "$(printf "%s\\n" "${_cp__stdoutb}")"
         }
     done
+    rm -rf "${_ibpkg__stdout}"
 }
 
 _repackage() {
