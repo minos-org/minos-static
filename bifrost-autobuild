@@ -80,8 +80,8 @@ _diff_recipes() {
     mkfifo "/tmp/${progname}.fifo1"
     mkfifo "/tmp/${progname}.fifo2"
     if [ -e "/tmp/${progname}.fifo1" ] && [ -e "/tmp/${progname}.fifo2" ]; then
-        _diff_recipes__1="$(find "${1}/all" "${1}/broken" -type d|awk -F"/" '{print $NF}')"
-        _diff_recipes__2="$(find "${2}/all" -type d|awk -F"/" '{print $NF}')"
+        _diff_recipes__1="$(find "${1}/all" "${1}/broken" -maxdepth 1 -type d|awk -F"/" '{print $NF}'|awk 'NF')"
+        _diff_recipes__2="$(find "${2}/all" -maxdepth 1 -type d|awk -F"/" '{print $NF}'|awk 'NF')"
         printf "%s\\n" "${_diff_recipes__1}" > "/tmp/${progname}.fifo1" &
         printf "%s\\n" "${_diff_recipes__2}" > "/tmp/${progname}.fifo2" &
         awk 'NR == FNR { A[$0]=1; next } !A[$0]' "/tmp/${progname}.fifo1" "/tmp/${progname}.fifo2"
