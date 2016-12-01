@@ -1,0 +1,6 @@
+Usage
+-----
+
+    ansible-playbook -i hosts ./01-minos-static.yaml      -vvvv --sudo --ask-sudo
+    ansible-playbook -i hosts ./02-minos-static-web.yml   -vvvv --sudo --ask-sudo
+    ansible-playbook -i hosts ./03-minos-static-rsync.yml -vvvv --sudo --ask-sudo
