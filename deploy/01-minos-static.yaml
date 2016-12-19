@@ -40,6 +40,9 @@
       args:
             creates: /home/admin/minos-static
 
+    - name: Update minos-static git repository
+      shell: cd /home/admin/minos-static && git pull
+
     - name: Add minos-static cronjob
       #every 1:00 am
       cron: name="minos-static {{item}}" minute="0" hour="1"

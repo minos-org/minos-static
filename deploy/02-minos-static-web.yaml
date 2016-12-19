@@ -27,12 +27,6 @@
      when: nginxinstalled|success
      template: src=files/etc.nginx.conf.d.misc.conf dest=/etc/nginx/conf.d/misc.conf owner=root group=root
 
-   - name: Create web root
-     when: nginxinstalled|success
-     file: dest={{ wwwroot }} mode=0775 state=directory owner=www-data group=www-data recurse=yes
-     notify:
-      - Reload nginx
-
    - name: Disable default site
      when: nginxinstalled|success
      file: dest=/etc/nginx/sites-enabled/default state=absent
@@ -50,9 +44,15 @@
      when: customconfig|success
      file: src=/etc/nginx/sites-available/{{ domain }}.conf dest=/etc/nginx/sites-enabled/{{ domain }}.conf state=link
 
+   - name: Add site
+     when: customconfig|success
+     file: src={{ buildroot }}/{{ item }} dest={{ wwwroot }} owner=www-data group=www-data recurse=yes
+     with_items:
+        - site
+
    - name: Add static binary repositories
      when: customconfig|success
-     file: src={{ buildroot }}/{{ item }} dest={{ wwwroot }}/{{ item }} state=link owner=www-data group=www-data
+     file: src={{ buildroot }}/{{ item }} dest={{ wwwroot }}/archive/{{ item }} state=link owner=www-data group=www-data
      with_items:
         - bifrost
         - morpheus

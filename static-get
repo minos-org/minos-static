@@ -158,7 +158,7 @@ _get_package_indexes() {
 }
 
 _set_defaults() {
-    [ -z "${mirror}" ]      && mirror="s.minos.io"
+    [ -z "${mirror}" ]      && mirror="s.minos.io/archive"
     [ -z "${distro}" ]      && distro="all"
     [ -z "${arch}" ]        && arch="$(uname -m)"
     [ -z "${directory}" ]   && directory="."

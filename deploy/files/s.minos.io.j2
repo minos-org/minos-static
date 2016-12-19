@@ -3,11 +3,11 @@ server {
     server_name {{ domain }} static.minos.io;
     root /var/www/{{ domain }}/;
 
-    location ~ ^/cgi-bin { return 444; }
+    location ~ ^/cgi-bin           { return 444; }
     location ~ \.(?:php|aspx|asp)$ { return 444; }
-    location ~ php\.cgi$ { return 444; }
-    location ~ ^/images/stories { return 444; }
-    location ~ myadmin { return 444; }
+    location ~ php\.cgi$           { return 444; }
+    location ~ ^/images/stories    { return 444; }
+    location ~ myadmin             { return 444; }
 
     if ($request_method !~ ^(GET|HEAD|POST)$ ) { return 444; }
 
