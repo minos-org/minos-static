@@ -85,7 +85,7 @@ _normal_msg() {
 
 _cat() {
     [ -z "${1}" ] && return 1
-    [ -z "${global_output}" ] && output_fname="$(_basename "${1}")" || {
+    [ -z "${global_output}" ]      && output_fname="$(_basename "${1}")" || {
         [ -z "${output_counter}" ] && output_counter="0"
     }
 
@@ -103,51 +103,61 @@ _cat() {
     printf "%s\\n" "${directory}/${output_fname}" | sed 's:\./::' | sed "s:{#}:${output_counter}:"
 }
 
+_uniq_id_mirror() {
+    printf "%s\\n" "${1%/}" | sed 's|/|##|g'
+}
+
 _get_available_distros() {
-    #$1 => mirror, eg: s.minos.io
+    #$1 => mirror, eg: s.minos.io|s.minos.io/archive
     [ -z "${1}" ] && return 1
-    bmirror="$(_basename "${1}")"
-    [ -d /tmp/"${progname_static}.${bmirror}" ] || mkdir /tmp/"${progname_static}.${bmirror}"
-    if [ ! -f /tmp/"${progname_static}.${bmirror}/index.html" ]; then
-        cd /tmp/"${progname_static}.${bmirror}"
+    [ -z "${uniq_id_mirror}" ] && uniq_id_mirror="$(_uniq_id_mirror "${1}")"
+    [ -d /tmp/"${progname_static}.${uniq_id_mirror}" ] || mkdir /tmp/"${progname_static}.${uniq_id_mirror}"
+    if [ ! -f /tmp/"${progname_static}.${uniq_id_mirror}/index.html" ]; then
+        cd /tmp/"${progname_static}.${uniq_id_mirror}"
         case "${retriever_bin}" in
-            *curl*) curl -o index.html "${bmirror}" >/dev/null 2>&1 ;;
-            *) $retriever_bin "${bmirror}" >/dev/null 2>&1 || \
-               $retriever_bin "http://${bmirror}" >/dev/null 2>&1 ;;
+            *curl*) curl -o index.html "${1}" >/dev/null 2>&1 ;;
+            *) $retriever_bin -O index.html "${1}" >/dev/null 2>&1 || \
+               $retriever_bin -O index.html "http://${1}" >/dev/null 2>&1 ;;
         esac
     fi
     awk  -F'"' '/href/ {if ($2 != "../" && $2 != "robots.txt") print $2}' \
-        /tmp/"${progname_static}.${bmirror}/index.html" 2>/dev/null
+        /tmp/"${progname_static}.${uniq_id_mirror}/index.html" 2>/dev/null
 }
 
 _get_available_archs() {
-    #$1 => mirror, eg: s.minos.io
+    #$1 => mirror, eg: s.minos.io|s.minos.io/archive
     #$2 => distro, eg: bifrost
     [ -z "${2}" ] && return 1
-    [ -d /tmp/"${progname_static}.${1}" ]      || mkdir /tmp/"${progname_static}.${1}"
-    [ -d /tmp/"${progname_static}.${1}/${2}" ] || mkdir /tmp/"${progname_static}.${1}/${2}"
+    [ -z "${uniq_id_mirror}" ] && uniq_id_mirror="$(_uniq_id_mirror "${1}")"
 
-    if [ ! -f /tmp/"${progname_static}.${1}/${2}/index.html" ]; then
-        cd /tmp/"${progname_static}.${1}/${2}"
+    [ -d /tmp/"${progname_static}.${uniq_id_mirror}" ]      || \
+        mkdir /tmp/"${progname_static}.${uniq_id_mirror}"
+    [ -d /tmp/"${progname_static}.${uniq_id_mirror}/${2}" ] || \
+        mkdir /tmp/"${progname_static}.${uniq_id_mirror}/${2}"
+
+    if [ ! -f /tmp/"${progname_static}.${uniq_id_mirror}/${2}/index.html" ]; then
+        cd /tmp/"${progname_static}.${uniq_id_mirror}/${2}"
         case "${retriever_bin}" in
             *curl*) curl -o index.html "${1}/${2}" >/dev/null 2>&1 ;;
-            *) $retriever_bin "${1}/${2}" >/dev/null 2>&1 || \
-               $retriever_bin "http://${1}/${2}" >/dev/null 2>&1 ;;
+            *) $retriever_bin -O index.html "${1}/${2}" >/dev/null 2>&1 || \
+               $retriever_bin -O index.html "http://${1}/${2}" >/dev/null 2>&1 ;;
         esac
     fi
-    awk  -F'"' '/href/ {if ($2 != "../") print $2}' /tmp/"${progname_static}.${1}/${2}/index.html" 2>/dev/null
+    awk  -F'"' '/href/ {if ($2 != "../") print $2}' /tmp/"${progname_static}.${uniq_id_mirror}/${2}/index.html" 2>/dev/null
 }
 
 _get_package_indexes() {
-    #$1 => mirror, eg: s.minos.io
+    #$1 => mirror, eg: s.minos.io|s.minos.io/archive
     [ -z "${1}" ] && return 1
     [ -z "${available_distros}" ] && available_distros="$(_get_available_distros "${1}")"
+    [ -z "${uniq_id_mirror}" ]    && uniq_id_mirror="$(_uniq_id_mirror "${1}")"
     for gdistro in ${available_distros}; do
         available_arch="$(_get_available_archs "${1}" "${gdistro}")"
         for garch in ${available_arch}; do
-            [ -d /tmp/"${progname_static}.${1}/${gdistro}/${garch}" ] || _mkdir_p /tmp/"${progname_static}.${1}/${gdistro}/${garch}"
-            cd /tmp/"${progname_static}.${1}/${gdistro}/${garch}"
-            if [ ! -f /tmp/"${progname_static}.${1}/${gdistro}/${garch}/${checksum}sum.txt" ]; then
+            [ -d /tmp/"${progname_static}.${uniq_id_mirror}/${gdistro}/${garch}" ] || \
+                _mkdir_p /tmp/"${progname_static}.${uniq_id_mirror}/${gdistro}/${garch}"
+            cd /tmp/"${progname_static}.${uniq_id_mirror}/${gdistro}/${garch}"
+            if [ ! -f /tmp/"${progname_static}.${uniq_id_mirror}/${gdistro}/${garch}/${checksum}sum.txt" ]; then
                 $retriever_bin "${1}/${gdistro}/${garch}/${checksum}sum.tar.${compress_format}" >/dev/null 2>&1 || \
                 $retriever_bin "http://${1}/${gdistro}/${garch}/${checksum}sum.tar.${compress_format}" >/dev/null 2>&1
 
@@ -158,11 +168,12 @@ _get_package_indexes() {
 }
 
 _set_defaults() {
-    [ -z "${mirror}" ]      && mirror="s.minos.io/archive"
-    [ -z "${distro}" ]      && distro="all"
-    [ -z "${arch}" ]        && arch="$(uname -m)"
-    [ -z "${directory}" ]   && directory="."
-    [ X"${output}" = X"-" ] && directory="."
+    [ -z "${mirror}" ]         && mirror="s.minos.io/archive"
+    [ -z "${uniq_id_mirror}" ] && uniq_id_mirror="$(_uniq_id_mirror "${mirror}")"
+    [ -z "${distro}" ]         && distro="all"
+    [ -z "${arch}" ]           && arch="$(uname -m)"
+    [ -z "${directory}" ]      && directory="."
+    [ X"${output}" = X"-" ]    && directory="."
 
     if [ -z "${dry_run}" ]; then
         _mkdir_p "${directory}" || { printf "%s\\n" "unable to create ${directory}, exiting"; exit 1; }
@@ -230,27 +241,27 @@ _set_defaults() {
 }
 
 _static_search() {
-    [ -z "${1}" ] && return 1 || _ssearch__pattern="${1}"
+    #$1 => search pattern
+    [ -z "${1}" ] && return 1
 
     _set_defaults
     _get_package_indexes "${mirror}"
-    [ -z "${bmirror}" ] && bmirror="$(_basename "${mirror}")"
 
-    _ssearch__sanitazed_pattern="$(printf "%s" "${_ssearch__pattern}" | \
+    _ssearch__sanitazed_pattern="$(printf "%s\\n" "${1}" | \
     tr -cd 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890.-')"
     [ "${distro}" = "all" ] && distro=""
 
-    _ssearch__result="$(find /tmp/"${progname_static}.${bmirror}"/ -iname "${checksum}sum.txt"   | \
+    _ssearch__result="$(find /tmp/"${progname_static}.${uniq_id_mirror}"/ -iname "${checksum}sum.txt"   | \
         grep -- "${distro}" | xargs grep -- "${_ssearch__sanitazed_pattern}" | grep -- "${arch}" | \
-        grep -- "tar.${compress_format}" | sed "s:/tmp/static-get.::g;s:/${checksum}sum.txt\:: :g")"
+        grep -- "tar.${compress_format}" | sed "s:/tmp/static-get.::g;s:##:/:g;s:/${checksum}sum.txt\:: :g")"
 
     if [ "${_ssearch__result}" ]; then
         if [ "${verbose}" ]; then
             printf "%s\\n" "${_ssearch__result}" | awk '{printf "%s %s %s\n", $3, $2, $1}' | \
-                grep -- "${_ssearch__pattern}"   | awk '{printf "%s:%s:%s\n", $3, $1, $2}'
+                grep -- "${1}"   | awk '{printf "%s:%s:%s\n", $3, $1, $2}'
         else
             printf "%s\\n" "${_ssearch__result}" | awk '{printf "%s:%s\n", $3, $2}' | \
-                grep -- "${_ssearch__pattern}"   | cat
+                grep -- "${1}"   | cat
         fi
     else
         return 1
@@ -264,11 +275,11 @@ _static_get() {
         #_sget__file="$("${0}" ${extra_params} -v -n -s "^${package}" | sort -nr |head -1)"
         _sget__file="$(verbose=1 dry_run=1 _static_search "^${package}" | sort -nr |head -1)"
         [ -z "${_sget__file}" ] && _verbose "No matches for '${package}', skipping..." && continue
-        [ -z "${bmirror}" ] && bmirror="$(_basename "${mirror}")"
+        [ -z "${uniq_id_mirror}" ] && uniq_id_mirror="$(_uniq_id_mirror "${mirror}")"
 
         _sget__hash="${_sget__file##*:}"
         _sget__file="${_sget__file%:$_sget__hash}" #remove hash
-        _sget__file="$(printf "%s" "${_sget__file}" | tr ':' '/')"
+        _sget__file="$(printf "%s\\n" "${_sget__file}" | tr ':' '/')"
         _sget__bfile="$(_basename "${_sget__file}")"
 
         for i in 1 2; do #download on first run, write/extract on second
@@ -287,11 +298,11 @@ _static_get() {
                 break
             fi
 
-            if [ -f /tmp/static-get."${bmirror}/${_sget__bfile}" ]; then
-                _sget__hash_new="$($checksum_bin /tmp/static-get."${bmirror}/${_sget__bfile}" | awk '{print $1}')"
+            if [ -f /tmp/static-get."${uniq_id_mirror}/${_sget__bfile}" ]; then
+                _sget__hash_new="$($checksum_bin /tmp/static-get."${uniq_id_mirror}/${_sget__bfile}" | awk '{print $1}')"
 
                 if [ "${_sget__hash}" = "${_sget__hash_new}" ]; then
-                    _cat /tmp/"${progname_static}.${bmirror}/${_sget__bfile}"
+                    _cat /tmp/"${progname_static}.${uniq_id_mirror}/${_sget__bfile}"
 
                     if [ "${extract}" ]; then
                         [ ! -d "${directory}/${_sget__bfile%%.tar*}" ] && mkdir "${directory}/${_sget__bfile%%.tar*}"
@@ -304,10 +315,10 @@ _static_get() {
                     printf "'%s' doesn't match hashsum => '%s', clean the cache (%s) and try again\\n" \
                         "${directory}/${_sget__bfile}" "${_sget__hash}" \
                         "$(_usage | awk '/remove temporal/ {sub(/,/, ""); print $1 "|" $2}')" | sed 's:\./::'
-                    rm -f /tmp/static-get."${bmirror}/${_sget__bfile}"
+                    rm -f /tmp/static-get."${uniq_id_mirror}/${_sget__bfile}"
                 fi
             else
-                (cd /tmp/static-get."${bmirror}/" && {
+                (cd /tmp/static-get."${uniq_id_mirror}/" && {
                     $retriever_bin "${_sget__file}" >/dev/null 2>/dev/null || \
                     $retriever_bin "http://${_sget__file}" >/dev/null 2>/dev/null
                     }
