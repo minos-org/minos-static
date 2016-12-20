@@ -1,7 +1,7 @@
+---
 - hosts: minos-static
-  vars:
-    - domain:    s.minos.io
-    - wwwroot:   /var/www/s.minos.io/
+  vars_files:
+    - vars.yaml
 
   # only update if the cache hasn't been modified since the last 12 hours.
   pre_tasks:

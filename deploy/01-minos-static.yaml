@@ -1,5 +1,7 @@
 ---
 - hosts: minos-static
+  vars_files:
+    - vars.yaml
 
   # only update if the cache hasn't been modified since the last 12 hours.
   pre_tasks:
@@ -36,17 +38,19 @@
       user: name=admin
 
     - name: Get minos-static git repository
-      shell: git clone --depth=1 https://github.com/minos-org/minos-static /home/admin/minos-static
+      shell: git clone --depth=1 https://github.com/minos-org/minos-static {{buildroot}}
       args:
-            creates: /home/admin/minos-static
+            creates: "{{buildroot}}"
 
     - name: Update minos-static git repository
-      shell: cd /home/admin/minos-static && git pull
+      shell: git pull
+      args:
+        chdir: "{{buildroot}}"
 
     - name: Add minos-static cronjob
       #every 1:00 am
       cron: name="minos-static {{item}}" minute="0" hour="1"
-            user="root" job="/home/admin/minos-static/{{item}} >/dev/null 2>&1" state=present
+            user="root" job="{{buildroot}}/{{item}} >/dev/null 2>&1" state=present
       with_items:
         - bifrost-autobuild
         - morpheus-autobuild
@@ -54,7 +58,7 @@
         - misc-autosync
 
     - name: Set appropiate permitions to the minos-static directory
-      file: path=/home/admin/minos-static state=directory owner=admin group=admin recurse=yes
+      file: path={{buildroot}} state=directory owner=admin group=admin recurse=yes
 
     - name: mailgun api
       pause: prompt="Make sure to add a valid mailgun API to /etc/mailgun and valid SSH keys for connecting to github/launchpad"
