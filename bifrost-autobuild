@@ -8,6 +8,16 @@ PS4="> "
 #crontab jobs run in a very sparse environment
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin:/sbin"
 
+
+_usage() {
+    printf "%b\\n" "Usage: ${progname} [OPTION]"
+    printf "%b\\n" "Build static linux binaries based on bifrost/minos recipes"
+    printf "\\n"
+    printf "%b\\n" "  init        initializate environment and exit"
+    printf "\\n"
+    printf "%b\\n" "  -h, --help  show this message and exit"
+}
+
 _basename() {
     [ -z "${1}" ] && return 1 || _basename__name="${1}"
     [ -z "${2}" ] || _basename__suffix="${2}"
@@ -113,6 +123,14 @@ _repackage() {
 progname="$(_basename ${0})"
 nonroot_user="$(getent passwd | awk -F: '{if ($3 >= 1000 && $3 < 60000) print $1}'|head -1)"
 
+for arg in "${@}"; do #parse options
+    case "${arg}" in
+        -h|--help) _usage && exit ;;
+        -*) _die "${progname}: unrecognized option '${arg}'" >&2 ;;
+        init)      init="1" ;;
+    esac
+done
+
 if ! command -v "git" >/dev/null; then
     _die "you need to install 'git' to run this program"
 fi
@@ -146,6 +164,13 @@ cp -p "${bdir}/bifrost-build/mini-native-i586/var/lib/build/util/chroot-i586-bui
 cp -p "${bdir}/bifrost-build/mini-native-i586/var/lib/build/util/chroot-i586.sh" "${bdir}/bifrost-build/"
 cp -p "${bdir}/bifrost-build/mini-native-i586/var/lib/build/util/env-build.sh"   "${bdir}/bifrost-build/mini-native-i586/bin/"
 cp -p "${bdir}/bifrost-build/mini-native-i586/var/lib/build/util/env-setup.sh"   "${bdir}/bifrost-build/mini-native-i586/bin/"
+cp -p "${bdir}/bifrost-build/mini-native-i586/var/lib/build/util/env-setup.sh"   "${bdir}/bifrost-build/mini-native-i586/bin/"
+
+cp -p "${bdir}"/bifrost-build/minos-bifrost/util/chroot-i586*.sh "${bdir}/bifrost-build/"
+
+#exit if we only need to initializate the environment (skipping the building of
+#all recipes), useful for adding/testing new recipes
+[ -n "${init}" ] && exit
 
 #build packages
 for recipe in "${bdir}"/bifrost-build/mini-native-i586/var/lib/build/all/*; do
