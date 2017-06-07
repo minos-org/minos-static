@@ -29,7 +29,7 @@
         - diffutils
 
     - name: Get mailgun script
-      get_url: url=https://raw.githubusercontent.com/chilicuil/learn/master/sh/tools/mailgun dest=/usr/bin/mailgun validate_certs=no
+      get_url: url=https://raw.githubusercontent.com/javier-lopez/learn/master/sh/tools/mailgun dest=/usr/bin/mailgun validate_certs=no
 
     - name: Chmod +x mailgun
       file: path=/usr/bin/mailgun mode=0755
