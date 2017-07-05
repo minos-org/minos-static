@@ -5,6 +5,8 @@
 #example: static-get git
 #git-1.8.2.1-3.tar.gz:sha512sum
 
+VERSION="2017.07.04-12:19"
+
 _usage() {
     printf "%b\\n" "Usage: ${progname} [OPTION]... PACKAGE ..."
     printf "%b\\n" "Retrieve static linux binaries from s.minos.io and mirrors."
@@ -22,14 +24,11 @@ _usage() {
     printf "%b\\n" "  -k, --checksum [sha512|md5] set checksum"
     printf "%b\\n" "  -t, --distro [all|bifrost|morpheus|rlsd2|misc] set distro"
     printf "\\n"
+    printf "%b\\n" "  -U, --update                update this program to latest version"
+    printf "%s\\n" "  -V, --version               display version"
     printf "%b\\n" "  -v, --verbose               turn on verbose mode"
     printf "%b\\n" "  -q, --quiet                 suppress non-error messages"
     printf "%b\\n" "  -h, --help                  show this message and exit"
-}
-
-_die() {
-    [ -z "${1}" ] || printf "%s\\n" "${*}" >&2
-    _usage; >&2; exit 1
 }
 
 _basename() {
@@ -43,11 +42,73 @@ _basename() {
         _basename__name="${_basename__name%$_basename__suffix}"
     fi
 
-    printf "%s" "${_basename__name}"
+    printf "%s\\n" "${_basename__name}"
+}
+
+_die() {
+    [ -z "${1}" ] || printf "%s\\n" "${*}" >&2
+    _usage; >&2; exit 1
+}
+
+_update() {
+    _u__current_file="$(cd "$(dirname "${0}")" && pwd)/${progname}"
+    _u__current_version_long="$(awk -F\" \
+        '/VERSION=/{print $2;exit}' "${_u__current_file}" 2>/dev/null)"
+    _u__current_version="$(printf "%s\\n" "${_u__current_version_long}" | \
+        awk '{gsub(/[\.:]/,"");gsub(/-/,"");print;exit}' 2>/dev/null)"
+    [ -z "${_u__current_version}" ] && printf "%s\\n%s\\n%s\\n"           \
+        "ERROR: Failed to detect current version, please update manually" \
+        "${progname}         = ${_u__current_file}"                       \
+        "${progname} version = ${_u__current_version}" >&2 && return 1
+
+    command -v "wget" >/dev/null 2>&1 || command -v "curl" >/dev/null 2>&1 || \
+        { printf "%s\\n" "ERROR: Install either 'wget' or 'curl' to upgrade" >&2; return 1; }
+
+    _u__url="https://raw.githubusercontent.com/minos-org/minos-static/master/${progname}"
+    _u__tmpfile="/tmp/${progname}.${$}.update"
+
+    _u__error_msg="$(wget -q -O- --no-check-certificate "${_u__url}" \
+        > "${_u__tmpfile}" 2>&1   || curl -s "${_u__url}"  \
+        > "${_u__tmpfile}" 2>&1)" || { printf "%s\\n%s\\n" \
+        "ERROR: Failed to fetch update, please try later or update manually" \
+        "${_u__error_msg}" >&2; return 1; }
+
+    _u__update_version_long="$(awk -F\" \
+        '/VERSION=/{print $2;exit}' "${_u__tmpfile}" 2>/dev/null)"
+    _u__update_version="$(printf "%s\\n" "${_u__update_version_long}" | awk \
+        '{gsub(/[\.:]/,"");gsub(/-/,"");print;exit}' 2>/dev/null)"
+    [ -n "${_u__update_version}" ] || _u__update_version="0"
+
+    if [ "${_u__current_version}" -lt "${_u__update_version}" ]; then
+        printf "%s %s\\n" "Updating from version" \
+            "${_u__current_version_long} to ${_u__update_version_long} ..."
+        chmod +x "${_u__tmpfile}"
+        if ! mv -f "${_u__tmpfile}" "${_u__current_file}" 2>/dev/null; then
+            printf "%s\\n" "ERROR: no write permissions on ${_u__current_file}" >&2
+            printf "%s\\n" "INFO : trying with sudo ..." >&2
+            if command -v "sudo" >/dev/null 2>&1; then
+                sudo mv "${_u__tmpfile}" "${_u__current_file}" || return 1
+            else
+                printf "%s\\n" "ERROR: sudo isn't available, exiting ..." >&2
+                rm -rf "${_u__tmpfile}"
+                return 1
+            fi
+        fi
+        printf "%s %s\\n" "${progname} is up-to-date (${_u__update_version_long})"
+        return 0
+    fi
+    printf "%s %s\\n" "${progname} is up-to-date (${_u__current_version_long})"
+    rm -rf "${_u__tmpfile}"
+}
+
+_show_version() {
+    printf "%s\\n" "${progname} ${VERSION}"
 }
 
 _mkdir_p() { #portable mkdir -p
-    for _mkdir_p__dir; do
+    [ -n "${1}" ] || return 1
+    for _mkdir_p__dir in "${@}"; do
+        [ -d "${_mkdir_p__dir}" ] && continue
         _mkdir_p__IFS="${IFS}"
         IFS="/"
         set -- ${_mkdir_p__dir}
@@ -56,31 +117,26 @@ _mkdir_p() { #portable mkdir -p
         case "${_mkdir_p__dir}" in
             /*) cd /; shift ;;
         esac
-        for _mkdir_p__subdir; do
+        for _mkdir_p__subdir in "${@}"; do
             [ -z "${_mkdir_p__subdir}" ] && continue
             if [ -d "${_mkdir_p__subdir}" ] || mkdir "${_mkdir_p__subdir}"; then
                 if cd "${_mkdir_p__subdir}"; then
                     :
                 else
                     printf "%s\\n" "_mkdir_p: Can't enter ${_mkdir_p__subdir} while creating ${_mkdir_p__dir}"
-                    exit 1
+                    return 1
                 fi
             else
-                exit 1
+                return 1
             fi
         done
         )
-    done; unset _mkdir_p__dir
+    done
 }
 
 _verbose() {
     [ -z "${1}" ] && return 1
     [ -n "${verbose}" ] && printf "%s\\n" "${*}" || :
-}
-
-_normal_msg() {
-    [ -z "${1}" ] && return 1
-    [ -n "${quiet}" ] || printf "%s\\n" "${*}"
 }
 
 _cat() {
@@ -94,8 +150,10 @@ _cat() {
     else
         case "${output_fname}" in
               -) cat "${1}"; return 0 ;;
-            *\{#\}*) output_counter="$(($output_counter + 1))"
-                     cat "${1}" >> "${directory}/$(printf "%s" "${output_fname}" | sed "s:{#}:${output_counter}:")" ;;
+        *\{#\}*) output_counter="$(($output_counter + 1))"
+                 cat "${1}" >> "${directory}/$(printf "%s\\n" "${output_fname}" | \
+                     sed "s:{#}:${output_counter}:")"
+                 ;;
               *) cat "${1}" >> "${directory}/${output_fname}" ;;
         esac
     fi
@@ -107,21 +165,32 @@ _uniq_id_mirror() {
     printf "%s\\n" "${1%/}" | sed 's|/|##|g'
 }
 
+_fetch() {
+    case "${#}" in
+        1) $retriever_bin "${1}" ;;
+        2)
+           case "${retriever_bin}" in
+               wget*) $retriever_bin -O "${2}" "${1}" >/dev/null || \
+                      $retriever_bin -O "${2}" "http://${1}" >/dev/null ;;
+               curl*) ${retriever_bin# -O} -o "${2}" "${1}"  >/dev/null ;;
+               *) return 1 ;;
+           esac
+           ;;
+        *) return 1 ;;
+    esac
+}
+
 _get_available_distros() {
     #$1 => mirror, eg: s.minos.io|s.minos.io/archive
     [ -z "${1}" ] && return 1
     [ -z "${uniq_id_mirror}" ] && uniq_id_mirror="$(_uniq_id_mirror "${1}")"
-    [ -d /tmp/"${progname_static}.${uniq_id_mirror}" ] || mkdir /tmp/"${progname_static}.${uniq_id_mirror}"
-    if [ ! -f /tmp/"${progname_static}.${uniq_id_mirror}/index.html" ]; then
-        cd /tmp/"${progname_static}.${uniq_id_mirror}"
-        case "${retriever_bin}" in
-            *curl*) curl -o index.html "${1}" >/dev/null 2>&1 ;;
-            *) $retriever_bin -O index.html "${1}" >/dev/null 2>&1 || \
-               $retriever_bin -O index.html "http://${1}" >/dev/null 2>&1 ;;
-        esac
+    _mkdir_p "${tmpcache}.${uniq_id_mirror}"
+    if [ ! -f "${tmpcache}.${uniq_id_mirror}/index.html" ]; then
+        cd "${tmpcache}.${uniq_id_mirror}"
+        _fetch "${1}" index.html
     fi
-    awk  -F'"' '/href/ {if ($2 != "../" && $2 != "robots.txt") print $2}' \
-        /tmp/"${progname_static}.${uniq_id_mirror}/index.html" 2>/dev/null
+    awk  -F'"' '/href/ {if ($2 != "../" && $2 != "robots.txt") {sub(/\//,"",$2);print $2}}' \
+        "${tmpcache}.${uniq_id_mirror}/index.html" 2>/dev/null
 }
 
 _get_available_archs() {
@@ -130,20 +199,14 @@ _get_available_archs() {
     [ -z "${2}" ] && return 1
     [ -z "${uniq_id_mirror}" ] && uniq_id_mirror="$(_uniq_id_mirror "${1}")"
 
-    [ -d /tmp/"${progname_static}.${uniq_id_mirror}" ]      || \
-        mkdir /tmp/"${progname_static}.${uniq_id_mirror}"
-    [ -d /tmp/"${progname_static}.${uniq_id_mirror}/${2}" ] || \
-        mkdir /tmp/"${progname_static}.${uniq_id_mirror}/${2}"
+    _mkdir_p "${tmpcache}.${uniq_id_mirror}/${2}"
 
-    if [ ! -f /tmp/"${progname_static}.${uniq_id_mirror}/${2}/index.html" ]; then
-        cd /tmp/"${progname_static}.${uniq_id_mirror}/${2}"
-        case "${retriever_bin}" in
-            *curl*) curl -o index.html "${1}/${2}" >/dev/null 2>&1 ;;
-            *) $retriever_bin -O index.html "${1}/${2}" >/dev/null 2>&1 || \
-               $retriever_bin -O index.html "http://${1}/${2}" >/dev/null 2>&1 ;;
-        esac
+    if [ ! -f "${tmpcache}.${uniq_id_mirror}/${2}/index.html" ]; then
+        cd "${tmpcache}.${uniq_id_mirror}/${2}"
+        _fetch "${1}/${2}" index.html
     fi
-    awk  -F'"' '/href/ {if ($2 != "../") print $2}' /tmp/"${progname_static}.${uniq_id_mirror}/${2}/index.html" 2>/dev/null
+    awk  -F'"' '/href/ {if ($2 != "../") {sub(/\//,"",$2);print $2}}' \
+        "${tmpcache}.${uniq_id_mirror}/${2}/index.html" 2>/dev/null
 }
 
 _get_package_indexes() {
@@ -154,14 +217,16 @@ _get_package_indexes() {
     for gdistro in ${available_distros}; do
         available_arch="$(_get_available_archs "${1}" "${gdistro}")"
         for garch in ${available_arch}; do
-            [ -d /tmp/"${progname_static}.${uniq_id_mirror}/${gdistro}/${garch}" ] || \
-                _mkdir_p /tmp/"${progname_static}.${uniq_id_mirror}/${gdistro}/${garch}"
-            cd /tmp/"${progname_static}.${uniq_id_mirror}/${gdistro}/${garch}"
-            if [ ! -f /tmp/"${progname_static}.${uniq_id_mirror}/${gdistro}/${garch}/${checksum}sum.txt" ]; then
-                $retriever_bin "${1}/${gdistro}/${garch}/${checksum}sum.tar.${compress_format}" >/dev/null 2>&1 || \
-                $retriever_bin "http://${1}/${gdistro}/${garch}/${checksum}sum.tar.${compress_format}" >/dev/null 2>&1
-
-                ${compress_bin} < "${checksum}sum.tar.${compress_format}" | tar xf -
+            _mkdir_p "${tmpcache}.${uniq_id_mirror}/${gdistro}/${garch}"
+            if [ ! -f "${tmpcache}.${uniq_id_mirror}/${gdistro}/${garch}/${checksum}sum.txt" ]; then
+                (
+                cd "${tmpcache}.${uniq_id_mirror}/${gdistro}/${garch}"
+                if _fetch "${1}/${gdistro}/${garch}/${checksum}sum.tar.${compress_format}"; then
+                    ${compress_bin} < "${checksum}sum.tar.${compress_format}" | tar xf -
+                else
+                    head -3 "${checksum}sum.tar.${compress_format}" >&2
+                fi
+                )
             fi
         done
     done
@@ -223,9 +288,9 @@ _set_defaults() {
     esac
 
     if command -v "wget" >/dev/null 2>&1; then
-        retriever_bin="wget"
+        retriever_bin="wget -q"
     elif command -v "curl" >/dev/null 2>&1; then
-        retriever_bin="curl -O"
+        retriever_bin="curl -s -O"
     elif command -v "fetch" >/dev/null 2>&1; then
         retriever_bin="fetch"
     else
@@ -249,19 +314,19 @@ _static_search() {
 
     _ssearch__sanitazed_pattern="$(printf "%s\\n" "${1}" | \
     tr -cd 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890.-')"
-    [ "${distro}" = "all" ] && distro=""
+    [ X"${distro}" = X"all" ] && distro=""
 
-    _ssearch__result="$(find /tmp/"${progname_static}.${uniq_id_mirror}"/ -iname "${checksum}sum.txt"   | \
+    _ssearch__result="$(find "${tmpcache}.${uniq_id_mirror}"/ -name "${checksum}sum.txt"   | \
         grep -- "${distro}" | xargs grep -- "${_ssearch__sanitazed_pattern}" | grep -- "${arch}" | \
-        grep -- "tar.${compress_format}" | sed "s:/tmp/static-get.::g;s:##:/:g;s:/${checksum}sum.txt\:: :g")"
+        grep -- "tar.${compress_format}" | sed "s:${tmpcache}.::g;s:##:/:g;s:/${checksum}sum.txt\:: :g")"
 
-    if [ "${_ssearch__result}" ]; then
+    if [ -n "${_ssearch__result}" ]; then
         if [ "${verbose}" ]; then
             printf "%s\\n" "${_ssearch__result}" | awk '{printf "%s %s %s\n", $3, $2, $1}' | \
-                grep -- "${1}"   | awk '{printf "%s:%s:%s\n", $3, $1, $2}'
+                grep -- "${1}" | awk '{printf "%s:%s:%s\n", $3, $1, $2}'
         else
             printf "%s\\n" "${_ssearch__result}" | awk '{printf "%s:%s\n", $3, $2}' | \
-                grep -- "${1}"   | cat
+                grep -- "${1}" | cat
         fi
     else
         return 1
@@ -270,7 +335,7 @@ _static_search() {
 
 _static_get() {
     [ -z "${1}" ] && return 1 || _set_defaults
-    for package; do
+    for package in "${@}"; do
         #extra_params="-m ${mirror} -a ${arch} -f ${compress_format} -c ${checksum} -t ${distro}"
         #_sget__file="$("${0}" ${extra_params} -v -n -s "^${package}" | sort -nr |head -1)"
         _sget__file="$(verbose=1 dry_run=1 _static_search "^${package}" | sort -nr |head -1)"
@@ -298,14 +363,14 @@ _static_get() {
                 break
             fi
 
-            if [ -f /tmp/static-get."${uniq_id_mirror}/${_sget__bfile}" ]; then
-                _sget__hash_new="$($checksum_bin /tmp/static-get."${uniq_id_mirror}/${_sget__bfile}" | awk '{print $1}')"
+            if [ -f "${tmpcache}.${uniq_id_mirror}/${_sget__bfile}" ]; then
+                _sget__hash_new="$($checksum_bin "${tmpcache}.${uniq_id_mirror}/${_sget__bfile}" | awk '{print $1}')"
 
                 if [ "${_sget__hash}" = "${_sget__hash_new}" ]; then
-                    _cat /tmp/"${progname_static}.${uniq_id_mirror}/${_sget__bfile}"
+                    _cat "${tmpcache}.${uniq_id_mirror}/${_sget__bfile}"
 
                     if [ "${extract}" ]; then
-                        [ ! -d "${directory}/${_sget__bfile%%.tar*}" ] && mkdir "${directory}/${_sget__bfile%%.tar*}"
+                        _mkdir_p "${directory}/${_sget__bfile%%.tar*}"
                         (cd "${directory}/${_sget__bfile%%.tar*}" && \
                         ${compress_bin} < "../${_sget__bfile}"  | tar xf -) && \
                         printf "%s\\n" "${directory}/${_sget__bfile%%.tar*}/" | sed 's:\./::'
@@ -315,21 +380,17 @@ _static_get() {
                     printf "'%s' doesn't match hashsum => '%s', clean the cache (%s) and try again\\n" \
                         "${directory}/${_sget__bfile}" "${_sget__hash}" \
                         "$(_usage | awk '/remove temporal/ {sub(/,/, ""); print $1 "|" $2}')" | sed 's:\./::'
-                    rm -f /tmp/static-get."${uniq_id_mirror}/${_sget__bfile}"
+                    rm -f "${tmpcache}.${uniq_id_mirror}/${_sget__bfile}"
                 fi
             else
-                (cd /tmp/static-get."${uniq_id_mirror}/" && {
-                    $retriever_bin "${_sget__file}" >/dev/null 2>/dev/null || \
-                    $retriever_bin "http://${_sget__file}" >/dev/null 2>/dev/null
-                    }
-                )
+                (cd "${tmpcache}.${uniq_id_mirror}/" && _fetch "${_sget__file}")
             fi
         done
     done
 }
 
 progname="$(_basename "${0}")"
-progname_static="static-get"
+tmpcache="/tmp/static-get"
 
 if [ ! -t 0 ]; then
     #there is input comming from pipe or file, add it to the end of $@
@@ -338,106 +399,158 @@ fi
 
 [ "${#}" -eq "0" ] && _die
 
-for arg; do #parse options
+for arg in "${@}"; do #parse options
     case "${arg}" in
-        -h|--help)    _usage && exit ;;
+        -h|--help)    _usage;  exit ;;
+        -U|--update)  _update; exit "${?}" ;;
+        -V|--version) _show_version; exit "${?}" ;;
         -q|--quiet)   quiet="1";   shift ;;
         -v|--verbose) verbose="1"; shift ;;
         -x|--extract) extract="1"; shift ;;
         -n|--dry-run) dry_run="1"; shift ;;
-        '-d'|'--download')
-            if [ "${#}" -gt "1" ]; then
-                case "${2}" in
-                    -*) _die "Option '${arg}' requires a parameter";;
-                esac
-                shift; directory="${1}"; [ "${1}" ] && shift
-            else
-                _die "Option '${arg}' requires a parameter"
-            fi ;;
-        -d*) directory="${1#-d}"; shift ;;
-        --download*) directory="${1#--download}"; shift ;;
-        '-o'|'--output')
-            if [ "${#}" -gt "1" ]; then
-                case "${2}" in
-                    '-') : ;;
-                     -*) _die "Option '${arg}' requires a parameter" ;;
-                esac
-                shift; output_fname="${1}"; global_output="1"; [ "${1}" ] && shift
-            else
-                _die "Option '${arg}' requires a parameter"
-            fi ;;
-        -o*) output_fname="${1#-o}"; shift; global_output="1" ;;
-        --output*) output_fname="${1#--output}"; shift; global_output="1" ;;
-        '-s'|'--search')
-            if [ "${#}" -gt "1" ]; then
-                case "${1}" in
-                    -*) shift; for opt; do #use last parameter as search regex
-                            search_pattern="${opt}"
-                        done
-                        ;;
-                    *) shift; search_pattern="${1}"; [ "${1}" ] && shift ;;
-                esac
-            else
-                search_pattern="."
-            fi ;;
-        -s*) search_pattern="${1#-s}"; shift ;;
-        --search*) search_pattern="${1#--search}"; shift ;;
-        '-a'|'--arch')
-            if [ "${#}" -gt "1" ]; then
-                case "${2}" in
-                    -*) _die "Option '${arg}' requires a parameter" ;;
-                esac
-                shift; arch="${1}"; [ "${1}" ] && shift
-            else
-                _die "Option '${arg}' requires a parameter"
-            fi ;;
-        -a*) arch="${1#-a}"; shift ;;
-        --arch*) arch="${1#--arch}"; shift ;;
-        '-m'|'--mirror')
-            if [ "${#}" -gt "1" ]; then
-                case "${2}" in
-                    -*) _die "Option '${arg}' requires a parameter" ;;
-                esac
-                shift; mirror="${1}"; [ "${1}" ] && shift
-            else
-                _die "Option '${arg}' requires a parameter"
-            fi ;;
-        -m*) mirror="${1#-m}"; shift ;;
-        --mirror*) mirror="${1#--mirror}"; shift ;;
-        '-k'|'--checksum')
-            if [ "${#}" -gt "1" ]; then
-                case "${2}" in
-                    -*) _die "Option '${arg}' requires a parameter" ;;
-                esac
-                shift; checksum="${1}"; [ "${1}" ] && shift
-            else
-                _die "Option '${arg}' requires a parameter"
-            fi ;;
-        -k*) checksum="${1#-k}"; shift ;;
-        --checksum*) checksum="${1#--checksum}"; shift ;;
-        '-t'|'--distro')
-            if [ "${#}" -gt "1" ]; then
-                case "${2}" in
-                    -*) _die "Option '${arg}' requires a parameter" ;;
-                esac
-                shift; distro="${1}"; [ "${1}" ] && shift
-            else
-                _die "Option '${arg}' requires a parameter"
-            fi ;;
-        -t*) distro="${1#-t}"; shift ;;
-        --distro*) distro="${1#--distro}"; shift ;;
-        '-f'|'--format')
-            if [ "${#}" -gt "1" ]; then
-                case "${2}" in
-                    -*) _die "Option '${arg}' requires a parameter" ;;
-                esac
-                shift; compress_format="${1}"; [ "${1}" ] && shift
-            else
-                _die "Option '${arg}' requires a parameter"
-            fi ;;
-        -f*) compress_format="${1#-f}"; shift ;;
-        --format*) compress_format="${1#--format}"; shift ;;
-        -c|--clean-cache) rm -rf "/tmp/${progname_static}".* && \
+        '-d'|'--download'|-d*|--download*)
+            case "${arg}" in
+                '-d'|'--download')
+                    if [ "${#}" -gt "1" ]; then
+                        case "${2}" in
+                            -*) _die "Option '${arg}' requires a parameter";;
+                        esac
+                        shift; directory="${1}"; [ "${1}" ] && shift
+                    else
+                        _die "Option '${arg}' requires a parameter"
+                    fi
+                    ;;
+                -d*) directory="${1#-d}"; shift ;;
+                --download*) directory="${1#--download}"; shift ;;
+            esac
+            ;;
+
+        '-o'|'--output'|-o*|--output*)
+            case "${arg}" in
+                '-o'|'--output')
+                    if [ "${#}" -gt "1" ]; then
+                        case "${2}" in
+                            '-') : ;; #special stdout character
+                             -*) _die "Option '${arg}' requires a parameter" ;;
+                        esac
+                        shift; output_fname="${1}"; global_output="1"; [ "${1}" ] && shift
+                    else
+                        _die "Option '${arg}' requires a parameter"
+                    fi
+                    ;;
+                -o*) output_fname="${1#-o}"; shift; global_output="1" ;;
+                --output*) output_fname="${1#--output}"; shift; global_output="1" ;;
+            esac
+            ;;
+
+        '-s'|'--search'|-s*|--search*)
+            case "${arg}" in
+                '-s'|'--search')
+                    if [ "${#}" -gt "1" ]; then
+                        case "${1}" in
+                            -*) shift; for opt in "${@}"; do
+                                    #last parameter as search regex
+                                    search_pattern="${opt}"
+                                done
+                                ;;
+                            *) shift; search_pattern="${1}"
+                               [ "${1}" ] && shift ;;
+                        esac
+                    else
+                        search_pattern="."
+                    fi
+                    ;;
+                -s*) search_pattern="${1#-s}"; shift ;;
+                --search*) search_pattern="${1#--search}"; shift ;;
+            esac
+            ;;
+
+        '-a'|'--arch'|-a*|--arch*)
+            case "${arg}" in
+                '-a'|'--arch')
+                    if [ "${#}" -gt "1" ]; then
+                        case "${2}" in
+                            -*) _die "Option '${arg}' requires a parameter" ;;
+                        esac
+                        shift; arch="${1}"; [ "${1}" ] && shift
+                    else
+                        _die "Option '${arg}' requires a parameter"
+                    fi
+                    ;;
+                -a*) arch="${1#-a}"; shift ;;
+                --arch*) arch="${1#--arch}"; shift ;;
+            esac
+            ;;
+
+        '-m'|'--mirror'|-m*|--mirror*)
+            case "${arg}" in
+                '-m'|'--mirror')
+                    if [ "${#}" -gt "1" ]; then
+                        case "${2}" in
+                            -*) _die "Option '${arg}' requires a parameter" ;;
+                        esac
+                        shift; mirror="${1}"; [ "${1}" ] && shift
+                    else
+                        _die "Option '${arg}' requires a parameter"
+                    fi
+                    ;;
+                -m*) mirror="${1#-m}"; shift ;;
+                --mirror*) mirror="${1#--mirror}"; shift ;;
+            esac
+            ;;
+
+        '-k'|'--checksum'|-k*|--checksum*)
+            case "${arg}" in
+                '-k'|'--checksum')
+                    if [ "${#}" -gt "1" ]; then
+                        case "${2}" in
+                            -*) _die "Option '${arg}' requires a parameter" ;;
+                        esac
+                        shift; checksum="${1}"; [ "${1}" ] && shift
+                    else
+                        _die "Option '${arg}' requires a parameter"
+                    fi
+                    ;;
+                -k*) checksum="${1#-k}"; shift ;;
+                --checksum*) checksum="${1#--checksum}"; shift ;;
+            esac
+            ;;
+
+        '-t'|'--distro'|t*|--distro*)
+            case "${arg}" in
+                '-t'|'--distro')
+                    if [ "${#}" -gt "1" ]; then
+                        case "${2}" in
+                            -*) _die "Option '${arg}' requires a parameter" ;;
+                        esac
+                        shift; distro="${1}"; [ "${1}" ] && shift
+                    else
+                        _die "Option '${arg}' requires a parameter"
+                    fi
+                    ;;
+                -t*) distro="${1#-t}"; shift ;;
+                --distro*) distro="${1#--distro}"; shift ;;
+            esac
+            ;;
+
+        '-f'|'--format'|-f*|--format*)
+            case "${arg}" in
+                '-f'|'--format')
+                    if [ "${#}" -gt "1" ]; then
+                        case "${2}" in
+                            -*) _die "Option '${arg}' requires a parameter" ;;
+                        esac
+                        shift; compress_format="${1}"; [ "${1}" ] && shift
+                    else
+                        _die "Option '${arg}' requires a parameter"
+                    fi
+                    ;;
+                -f*) compress_format="${1#-f}"; shift ;;
+                --format*) compress_format="${1#--format}"; shift ;;
+            esac
+            ;;
+
+        -c|--clean-cache) rm -rf "${tmpcache}".* && \
             [ -z "${quiet}" ] && printf "%s\\n" "Cache cleared successfully"
             exit ;;
         '-') : ;; #special stdout character
