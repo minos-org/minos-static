@@ -34,6 +34,8 @@ $ static-get --search
   - https://github.com/minos-org/rlsd2-delta (if upstream doesn't reply)
 - misc-autosync / misc-autosync-resources (to the described url)
 
+[New recipes](https://github.com/minos-org/minos-static/wiki/new-recipes#new-package) are welcome =)!
+
 ## Mirroring
 
 [static-get](https://github.com/minos-org/minos-static) hasn't been designed to syncronizate data between servers, if you're intested in mirroring all the archive, please use one of the following methods:
