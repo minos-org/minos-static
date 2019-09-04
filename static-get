@@ -5,7 +5,7 @@
 #example: static-get git
 #git-1.8.2.1-3.tar.gz:sha512sum
 
-VERSION="2017.07.04-12:19"
+VERSION="2019.09.03-15:08"
 
 _usage() {
     printf "%b\\n" "Usage: ${progname} [OPTION]... PACKAGE ..."
@@ -15,6 +15,7 @@ _usage() {
     printf "%b\\n" "  -o, --output [file]         write to file"
     printf "%b\\n" "  -s, --search [pattern]      search packages by pattern"
     printf "%b\\n" "  -x, --extract               extract after download"
+    printf "%b\\n" "  -i, --install               install after download"
     printf "%b\\n" "  -n, --dry-run               perform a trial run with no changes made"
     printf "%b\\n" "  -c, --clean-cache           remove temporal files"
     printf "\\n"
@@ -369,7 +370,26 @@ _static_get() {
                 if [ "${_sget__hash}" = "${_sget__hash_new}" ]; then
                     _cat "${tmpcache}.${uniq_id_mirror}/${_sget__bfile}"
 
-                    if [ "${extract}" ]; then
+                    if [ "${install}" ]; then
+                        _mkdir_p "${directory}/${_sget__bfile%%.tar*}"
+                        (cd "${directory}/${_sget__bfile%%.tar*}" && \
+                        ${compress_bin} < "../${_sget__bfile}"  | tar xf -) && \
+                        if [ -w "/" ]; then
+                            cd "${_sget__bfile%%.tar*}" && \
+                            cp -r * "/" || return 1
+                        elif [ command -v "sudo" >/dev/null 2>&1 ]; then
+                            cd "${_sget__bfile%%.tar*}" && \
+                            sudo cp -r * "/" || return 1
+                        else
+                            printf "%s\\n" "ERROR: sudo isn't available, exiting ..." >&2
+                        fi
+                        
+                        if ! [ "${extract}" ]; then
+                            cd "../" && rm -rf "${_sget__bfile%%.tar*}"
+                        else
+                            printf "%s\\n" "${_sget__bfile%%.tar*}/" | sed 's:\./::'
+                        fi
+                    elif [ "${extract}" ]; then
                         _mkdir_p "${directory}/${_sget__bfile%%.tar*}"
                         (cd "${directory}/${_sget__bfile%%.tar*}" && \
                         ${compress_bin} < "../${_sget__bfile}"  | tar xf -) && \
@@ -407,6 +427,7 @@ for arg in "${@}"; do #parse options
         -q|--quiet)   quiet="1";   shift ;;
         -v|--verbose) verbose="1"; shift ;;
         -x|--extract) extract="1"; shift ;;
+        -i|--install) install="1"; shift ;;
         -n|--dry-run) dry_run="1"; shift ;;
         '-d'|'--download'|-d*|--download*)
             case "${arg}" in
