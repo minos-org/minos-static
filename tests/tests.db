@@ -3,6 +3,7 @@ static-get -h ; test X"${?}"                = X"0"
 printf "%s" '-h' | static-get; test X"${?}" = X"0"
 static-get -d ;   test X"${?}"              = X"1"
 static-get -x ;   test X"${?}"              = X"1"
+static-get -i ;   test X"${?}"              = X"1"
 static-get -n ;   test X"${?}"              = X"1"
 static-get -m ;   test X"${?}"              = X"1"
 static-get -a ;   test X"${?}"              = X"1"
@@ -16,6 +17,7 @@ test X"$(static-get --cui 2>&1|head -1)"               = X"static-get: unrecogni
 test X"$(static-get --download 2>&1|head -1)"          = X"Option '--download' requires a parameter"
 test X"$(static-get --download . 2>&1|head -1)"        = X"static-get: missing arguments"
 test X"$(static-get -x 2>&1|head -1)"                  = X"static-get: missing arguments"
+test X"$(static-get -i 2>&1|head -1)"                  = X"static-get: missing arguments"
 test X"$(static-get --dry-run 2>&1|head -1)"           = X"static-get: missing arguments"
 test X"$(static-get -m 2>&1|head -1)"                  = X"Option '-m' requires a parameter"
 test X"$(static-get --mirror s.minos.io 2>&1|head -1)" = X"static-get: missing arguments"
@@ -58,6 +60,10 @@ test -d allcaps-1-1/ && test -f allcaps-1-1.tar.gz && rm -rf allcaps*
 test "$(static-get -d test -fgz -x allcaps-1-1 2>&1|wc -l)" -eq "2"
 test -d test/ && test -f test/allcaps-1-1.tar.gz && test -d test/allcaps-1-1/
 test ! -f allcaps-1-1.tar.gz && rm -rf test
+
+test "$(static-get -fgz -i allcaps-1-1 2>&1|wc -l)" -eq "2"
+test ! -f /sbin/allcaps
+test -f allcaps-1-1.tar.gz && rm -rf allcaps*
 
 test X"$(static-get -fxz allcaps-1-1 2>&1)" = X"allcaps-1-1.tar.xz"
 test -f allcaps-1-1.tar.xz && rm -rf allcaps-1-1.tar.xz
