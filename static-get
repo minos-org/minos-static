@@ -334,6 +334,14 @@ _static_search() {
     fi
 }
 
+_extract() {
+    _mkdir_p "${directory}/${_sget__bfile%%.tar*}"
+    (cd "${directory}/${_sget__bfile%%.tar*}" && \
+    ${compress_bin} < "../${_sget__bfile}"  | tar xf -)
+
+    [ "${1}" ] && printf "%s\\n" "${directory}/${_sget__bfile%%.tar*}/" | sed 's:\./::'
+}
+
 _static_get() {
     [ -z "${1}" ] && return 1 || _set_defaults
     for package in "${@}"; do
@@ -371,9 +379,7 @@ _static_get() {
                     _cat "${tmpcache}.${uniq_id_mirror}/${_sget__bfile}"
 
                     if [ "${install}" ]; then
-                        _mkdir_p "${directory}/${_sget__bfile%%.tar*}"
-                        (cd "${directory}/${_sget__bfile%%.tar*}" && \
-                        ${compress_bin} < "../${_sget__bfile}"  | tar xf -) && \
+                        _extract "${extract}"
                         if [ -w "/" ]; then
                             cd "${_sget__bfile%%.tar*}" && \
                             cp -r * "/" || return 1
@@ -386,14 +392,9 @@ _static_get() {
                         
                         if ! [ "${extract}" ]; then
                             cd "../" && rm -rf "${_sget__bfile%%.tar*}"
-                        else
-                            printf "%s\\n" "${_sget__bfile%%.tar*}/" | sed 's:\./::'
                         fi
                     elif [ "${extract}" ]; then
-                        _mkdir_p "${directory}/${_sget__bfile%%.tar*}"
-                        (cd "${directory}/${_sget__bfile%%.tar*}" && \
-                        ${compress_bin} < "../${_sget__bfile}"  | tar xf -) && \
-                        printf "%s\\n" "${directory}/${_sget__bfile%%.tar*}/" | sed 's:\./::'
+                        _extract "${extract}"
                     fi
                     break
                 else
