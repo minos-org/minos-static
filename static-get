@@ -16,6 +16,7 @@ _usage() {
     printf "%b\\n" "  -s, --search [pattern]      search packages by pattern"
     printf "%b\\n" "  -x, --extract               extract after download"
     printf "%b\\n" "  -i, --install               install after download"
+    printf "%b\\n" "  -p, --prefix [dir]          installs the package to a specific location"
     printf "%b\\n" "  -n, --dry-run               perform a trial run with no changes made"
     printf "%b\\n" "  -c, --clean-cache           remove temporal files"
     printf "\\n"
@@ -380,12 +381,12 @@ _static_get() {
 
                     if [ "${install}" ]; then
                         _extract "${extract}"
-                        if [ -w "/" ]; then
+                        if [ -w "${prefix}/" ]; then
                             cd "${_sget__bfile%%.tar*}" && \
-                            cp -r * "/" || return 1
+                            cp -r * "${prefix}/" || return 1
                         elif [ command -v "sudo" >/dev/null 2>&1 ]; then
                             cd "${_sget__bfile%%.tar*}" && \
-                            sudo cp -r * "/" || return 1
+                            sudo cp -r * "${prefix}/" || return 1
                         else
                             printf "%s\\n" "ERROR: sudo isn't available, exiting ..." >&2
                         fi
@@ -430,6 +431,27 @@ for arg in "${@}"; do #parse options
         -x|--extract) extract="1"; shift ;;
         -i|--install) install="1"; shift ;;
         -n|--dry-run) dry_run="1"; shift ;;
+        '-p'|'--prefix'|-p*|--prefix*)
+            install="1"
+            case "${arg}" in
+                '-p'|'--prefix')
+                    if [ "${#}" -gt "1" ]; then
+                        case "${2}" in
+                            '-') : ;; #special stdout character
+                             -*) printf "Option '${arg}' requires a parameter ${2}" ;;
+                            '.') prefix="${PWD}" ; break ;;
+                            '..') prefix="${PWD}/../" ; break ;;
+                        esac
+                        shift; prefix="${1}"; [ "${1}" ] && shift
+                    else
+                        prefix="${PWD}"
+                    fi
+                    ;;
+                -p*) prefix="${1#-p}"; shift ;;
+                --prefix*) prefix="${1#--prefix}"; shift ;;
+            esac
+            ;;
+
         '-d'|'--download'|-d*|--download*)
             case "${arg}" in
                 '-d'|'--download')
