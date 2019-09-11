@@ -16,7 +16,7 @@ _usage() {
     printf "%b\\n" "  -s, --search [pattern]      search packages by pattern"
     printf "%b\\n" "  -x, --extract               extract after download"
     printf "%b\\n" "  -i, --install               install after download"
-    printf "%b\\n" "  -p, --prefix [dir]          installs the package to a specific location"
+    printf "%b\\n" "  -p, --prefix [dir]          specifies an install location for the package"
     printf "%b\\n" "  -n, --dry-run               perform a trial run with no changes made"
     printf "%b\\n" "  -c, --clean-cache           remove temporal files"
     printf "\\n"
@@ -432,7 +432,6 @@ for arg in "${@}"; do #parse options
         -i|--install) install="1"; shift ;;
         -n|--dry-run) dry_run="1"; shift ;;
         '-p'|'--prefix'|-p*|--prefix*)
-            install="1"
             case "${arg}" in
                 '-p'|'--prefix')
                     if [ "${#}" -gt "1" ]; then
