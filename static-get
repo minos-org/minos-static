@@ -598,12 +598,18 @@ for arg in "${@}"; do #parse options
             exit ;;
         '-') : ;; #special stdout character
         -*) _die "${progname}: unrecognized option '${arg}'" >&2 ;;
+        *)
+            if [ "${#}" -gt 0 ]; then
+                prog_args="${prog_args}${1} "
+                shift
+            fi
+            ;;
     esac
 done
 
 if [ -z "${search_pattern}" ]; then
-    [ "${#}" -eq "0" ] && _die "${progname}: missing arguments"
-    _static_get "${@}"
+    [ -z "${prog_args}" ] && _die "${progname}: missing arguments"
+    _static_get "${prog_args}"
 else
     _static_search "${search_pattern}"
 fi
