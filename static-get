@@ -559,7 +559,7 @@ for arg in "${@}"; do #parse options
             esac
             ;;
 
-        '-t'|'--distro'|t*|--distro*)
+        '-t'|'--distro'|-t*|--distro*)
             case "${arg}" in
                 '-t'|'--distro')
                     if [ "${#}" -gt "1" ]; then
