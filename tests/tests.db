@@ -61,20 +61,24 @@ test "$(static-get -d test -fgz -x allcaps-1-1 2>&1|wc -l)" -eq "2"
 test -d test/ && test -f test/allcaps-1-1.tar.gz && test -d test/allcaps-1-1/
 test ! -f allcaps-1-1.tar.gz && rm -rf test
 
-test "$(static-get -fgz -i allcaps-1-1 2>&1|wc -l)" -eq "2"
-test ! -f /sbin/allcaps
+test "$(static-get -fgz -i allcaps-1-1 2>&1|wc -l)" -eq "1"
+test -f /sbin/allcaps
 test -f allcaps-1-1.tar.gz && rm -rf allcaps*
 
-test "$(static-get -fgz -p . allcaps-1-1 2>&1|wc -l)" -eq "2"
-test ! -d doc/ && test ! -d sbin/
+test "$(static-get -fgz -p . allcaps-1-1 2>&1|wc -l)" -eq "1"
+test ! -f sbin/allcaps
 
-test "$(static-get -fgz -i -p . allcaps-1-1 2>&1|wc -l)" -eq "2"
-test -d doc/ && test -d sbin/
-rm -rf doc/ sbin/
+test "$(static-get -fgz -i -p . allcaps-1-1 2>&1|wc -l)" -eq "1"
+test -f sbin/allcaps
+rm  -rf sbin
 
-test "$(static-get -fgz -i -p .. allcaps-1-1 2>&1|wc -l)" -eq "2"
-test -d ../doc/ && test -d ../sbin/
-rm -rf ../doc/ ../sbin/
+static-get -fgz -i -p . allcaps-1-1
+static-get -fgz -r allcaps
+test ! -e sbin/allcaps
+
+test "$(static-get -fgz -i -p .. allcaps-1-1 2>&1|wc -l)" -eq "1"
+test -f ../sbin/allcaps
+rm  -rf ../sbin/
 
 test X"$(static-get -fxz allcaps-1-1 2>&1)" = X"allcaps-1-1.tar.xz"
 test -f allcaps-1-1.tar.xz && rm -rf allcaps-1-1.tar.xz

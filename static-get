@@ -5,7 +5,8 @@
 #example: static-get git
 #git-1.8.2.1-3.tar.gz:sha512sum
 
-VERSION="2019.09.10-22:55"
+VERSION="2020.02.01-11:14"
+LATEST_URI_BASENAME="https://raw.githubusercontent.com/minos-org/minos-static/master"
 
 _usage() {
     printf "%b\\n" "Usage: ${progname} [OPTION]... PACKAGE ..."
@@ -19,6 +20,7 @@ _usage() {
     printf "%b\\n" "  -p, --prefix [dir]          specifies an install location for the package"
     printf "%b\\n" "  -n, --dry-run               perform a trial run with no changes made"
     printf "%b\\n" "  -c, --clean-cache           remove temporal files"
+    printf "%b\\n" "  -r, --remove                removes an installed package"
     printf "\\n"
     printf "%b\\n" "  -m, --mirror [s.minos.io]   set mirror"
     printf "%b\\n" "  -a, --arch   [x86_64|i686]  set architecture"
@@ -49,7 +51,7 @@ _basename() {
 
 _die() {
     [ -z "${1}" ] || printf "%s\\n" "${*}" >&2
-    _usage; >&2; exit 1
+    _usage >&2; exit 1
 }
 
 _update() {
@@ -66,7 +68,7 @@ _update() {
     command -v "wget" >/dev/null 2>&1 || command -v "curl" >/dev/null 2>&1 || \
         { printf "%s\\n" "ERROR: Install either 'wget' or 'curl' to upgrade" >&2; return 1; }
 
-    _u__url="https://raw.githubusercontent.com/minos-org/minos-static/master/${progname}"
+    _u__url="${LATEST_URI_BASENAME}/${progname}"
     _u__tmpfile="/tmp/${progname}.${$}.update"
 
     _u__error_msg="$(wget -q -O- --no-check-certificate "${_u__url}" \
@@ -96,10 +98,10 @@ _update() {
                 return 1
             fi
         fi
-        printf "%s %s\\n" "${progname} is up-to-date (${_u__update_version_long})"
+        printf "%s\\n" "${progname} is up-to-date (${_u__update_version_long})"
         return 0
     fi
-    printf "%s %s\\n" "${progname} is up-to-date (${_u__current_version_long})"
+    printf "%s\\n" "${progname} is up-to-date (${_u__current_version_long})"
     rm -rf "${_u__tmpfile}"
 }
 
@@ -152,7 +154,7 @@ _cat() {
     else
         case "${output_fname}" in
               -) cat "${1}"; return 0 ;;
-        *\{#\}*) output_counter="$(($output_counter + 1))"
+        *\{#\}*) output_counter="$((output_counter + 1))"
                  cat "${1}" >> "${directory}/$(printf "%s\\n" "${output_fname}" | \
                      sed "s:{#}:${output_counter}:")"
                  ;;
@@ -188,7 +190,7 @@ _get_available_distros() {
     [ -z "${uniq_id_mirror}" ] && uniq_id_mirror="$(_uniq_id_mirror "${1}")"
     _mkdir_p "${tmpcache}.${uniq_id_mirror}"
     if [ ! -f "${tmpcache}.${uniq_id_mirror}/index.html" ]; then
-        cd "${tmpcache}.${uniq_id_mirror}"
+        cd "${tmpcache}.${uniq_id_mirror}" || return
         _fetch "${1}" index.html
     fi
     awk  -F'"' '/href/ {if ($2 != "../" && $2 != "robots.txt") {sub(/\//,"",$2);print $2}}' \
@@ -204,7 +206,7 @@ _get_available_archs() {
     _mkdir_p "${tmpcache}.${uniq_id_mirror}/${2}"
 
     if [ ! -f "${tmpcache}.${uniq_id_mirror}/${2}/index.html" ]; then
-        cd "${tmpcache}.${uniq_id_mirror}/${2}"
+        cd "${tmpcache}.${uniq_id_mirror}/${2}" || return
         _fetch "${1}/${2}" index.html
     fi
     awk  -F'"' '/href/ {if ($2 != "../") {sub(/\//,"",$2);print $2}}' \
@@ -222,7 +224,7 @@ _get_package_indexes() {
             _mkdir_p "${tmpcache}.${uniq_id_mirror}/${gdistro}/${garch}"
             if [ ! -f "${tmpcache}.${uniq_id_mirror}/${gdistro}/${garch}/${checksum}sum.txt" ]; then
                 (
-                cd "${tmpcache}.${uniq_id_mirror}/${gdistro}/${garch}"
+                cd "${tmpcache}.${uniq_id_mirror}/${gdistro}/${garch}" || return
                 if _fetch "${1}/${gdistro}/${garch}/${checksum}sum.tar.${compress_format}"; then
                     ${compress_bin} < "${checksum}sum.tar.${compress_format}" | tar xf -
                 else
@@ -235,12 +237,12 @@ _get_package_indexes() {
 }
 
 _set_defaults() {
-    [ -z "${mirror}" ]         && mirror="s.minos.io/archive"
-    [ -z "${uniq_id_mirror}" ] && uniq_id_mirror="$(_uniq_id_mirror "${mirror}")"
-    [ -z "${distro}" ]         && distro="all"
-    [ -z "${arch}" ]           && arch="$(uname -m)"
-    [ -z "${directory}" ]      && directory="."
-    [ X"${output}" = X"-" ]    && directory="."
+    [ -z "${mirror}" ]            && mirror="s.minos.io/archive"
+    [ -z "${uniq_id_mirror}" ]    && uniq_id_mirror="$(_uniq_id_mirror "${mirror}")"
+    [ -z "${distro}" ]            && distro="all"
+    [ -z "${arch}" ]              && arch="$(uname -m)"
+    [ -z "${directory}" ]         && directory="."
+    [ X"${output_fname}" = X"-" ] && directory="."
 
     if [ -z "${dry_run}" ]; then
         _mkdir_p "${directory}" || { printf "%s\\n" "unable to create ${directory}, exiting"; exit 1; }
@@ -362,7 +364,7 @@ _static_get() {
                 if [ "${output_fname}" ]; then
                     case "${output_fname}" in
                         *\{#\}*) [ -z "${output_counter}" ] && output_counter="0"
-                             output_counter="$(($output_counter + 1))"
+                             output_counter="$((output_counter + 1))"
                              ;;
                     esac
                     printf "%s\\n" "${directory}/${output_fname}" | sed 's:\./::' | sed "s:{#}:${output_counter}:"
@@ -375,22 +377,43 @@ _static_get() {
 
             if [ -f "${tmpcache}.${uniq_id_mirror}/${_sget__bfile}" ]; then
                 _sget__hash_new="$($checksum_bin "${tmpcache}.${uniq_id_mirror}/${_sget__bfile}" | awk '{print $1}')"
+                _sget__bfile_sub1="$(printf "%s\\n" "${_sget__bfile}" | cut -d "-" -f 1)"
 
-                if [ "${_sget__hash}" = "${_sget__hash_new}" ]; then
-                    _cat "${tmpcache}.${uniq_id_mirror}/${_sget__bfile}"
-
-                    if [ "${install}" ]; then
-                        _extract "${extract}"
-                        if [ -w "${prefix}/" ]; then
-                            cd "${_sget__bfile%%.tar*}" && \
-                            cp -r * "${prefix}/" || return 1
-                        elif [ command -v "sudo" >/dev/null 2>&1 ]; then
-                            cd "${_sget__bfile%%.tar*}" && \
-                            sudo cp -r * "${prefix}/" || return 1
+                if [ "${remove}" ]; then
+                    if [ -e ~/.static-get/"${_sget__bfile_sub1}" ]; then
+                        if [ -w ~/.static-get/"${_sget__bfile_sub1}" ]; then
+                            while read -r line; do
+                                rm -rf "${line}"
+                            done < ~/.static-get/"${_sget__bfile_sub1}"
+                            rm ~/.static-get/"${_sget__bfile_sub1}"
+                        elif command -v "sudo" >/dev/null 2>&1; then
+                            while read -r line; do
+                                sudo rm -rf "${line}"
+                            done < ~/.static-get/"${_sget__bfile_sub1}"
+                            sudo rm ~/.static-get/"${_sget__bfile_sub1}"
                         else
                             printf "%s\\n" "ERROR: sudo isn't available, exiting ..." >&2
                         fi
-                        
+                    elif [ "${i}" = "1" ]; then
+                        printf "ERROR: package %s could not be removed.\\n" "${_sget__bfile_sub1}" >&2
+                    fi
+                elif [ "${_sget__hash}" = "${_sget__hash_new}" ]; then
+                    _cat "${tmpcache}.${uniq_id_mirror}/${_sget__bfile}"
+
+                    # Install the package
+                    if [ "${install}" ]; then
+                        _extract "${extract}"
+                        _mkdir_p ~/.static-get
+                        if [ -w "${prefix}/" ]; then
+                            cd "${_sget__bfile%%.tar*}" && \
+                            cp -vr -- * "${prefix}/" | cut -d "'" -f 4 > ~/.static-get/"${_sget__bfile_sub1}" || return 1
+                        elif command -v "sudo" >/dev/null 2>&1; then
+                            cd "${_sget__bfile%%.tar*}" && \
+                            sudo cp -vr -- * "${prefix}/" | cut -d "'" -f 4 > ~/.static-get/"${_sget__bfile_sub1}" || return 1
+                        else
+                            printf "%s\\n" "ERROR: sudo isn't available, exiting ..." >&2
+                        fi
+
                         if ! [ "${extract}" ]; then
                             cd "../" && rm -rf "${_sget__bfile%%.tar*}"
                         fi
@@ -416,6 +439,7 @@ tmpcache="/tmp/static-get"
 
 if [ ! -t 0 ]; then
     #there is input comming from pipe or file, add it to the end of $@
+    #shellcheck disable=SC2046
     set -- "${@}" $(cat)
 fi
 
@@ -430,6 +454,7 @@ for arg in "${@}"; do #parse options
         -v|--verbose) verbose="1"; shift ;;
         -x|--extract) extract="1"; shift ;;
         -i|--install) install="1"; shift ;;
+        -r|--remove)  remove="1";  shift ;;
         -n|--dry-run) dry_run="1"; shift ;;
         '-p'|'--prefix'|-p*|--prefix*)
             case "${arg}" in
@@ -438,8 +463,8 @@ for arg in "${@}"; do #parse options
                         case "${2}" in
                             '-') : ;; #special stdout character
                              -*) printf "Option '${arg}' requires a parameter ${2}" ;;
-                            '.') prefix="${PWD}" ; break ;;
-                            '..') prefix="${PWD}/../" ; break ;;
+                            '.') prefix="${PWD}" ; shift; shift; break ;;
+                            '..')prefix="${PWD}/../" ; shift; shift; break ;;
                         esac
                         shift; prefix="${1}"; [ "${1}" ] && shift
                     else
@@ -598,6 +623,7 @@ for arg in "${@}"; do #parse options
             exit ;;
         '-') : ;; #special stdout character
         -*) _die "${progname}: unrecognized option '${arg}'" >&2 ;;
+
     esac
 done
 
