@@ -463,8 +463,8 @@ for arg in "${@}"; do #parse options
                         case "${2}" in
                             '-') : ;; #special stdout character
                              -*) printf "Option '${arg}' requires a parameter ${2}" ;;
-                            '.') prefix="${PWD}" ; break ;;
-                            '..') prefix="${PWD}/../" ; break ;;
+                            '.') prefix="${PWD}" ; shift; shift; break ;;
+                            '..')prefix="${PWD}/../" ; shift; shift; break ;;
                         esac
                         shift; prefix="${1}"; [ "${1}" ] && shift
                     else
