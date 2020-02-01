@@ -5,7 +5,8 @@
 #example: static-get git
 #git-1.8.2.1-3.tar.gz:sha512sum
 
-VERSION="2019.09.10-22:55"
+VERSION="2020.02.01-11:14"
+REPO="https://raw.githubusercontent.com/the-djdj/minos-static/master"
 
 _usage() {
     printf "%b\\n" "Usage: ${progname} [OPTION]... PACKAGE ..."
@@ -66,7 +67,7 @@ _update() {
     command -v "wget" >/dev/null 2>&1 || command -v "curl" >/dev/null 2>&1 || \
         { printf "%s\\n" "ERROR: Install either 'wget' or 'curl' to upgrade" >&2; return 1; }
 
-    _u__url="https://raw.githubusercontent.com/minos-org/minos-static/master/${progname}"
+    _u__url="${REPO}/${progname}"
     _u__tmpfile="/tmp/${progname}.${$}.update"
 
     _u__error_msg="$(wget -q -O- --no-check-certificate "${_u__url}" \
