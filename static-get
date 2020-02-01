@@ -399,7 +399,7 @@ _static_get() {
                 elif [ "${_sget__hash}" = "${_sget__hash_new}" ]; then
                     _cat "${tmpcache}.${uniq_id_mirror}/${_sget__bfile}"
 
-		    # Install the package
+                    # Install the package
                     if [ "${install}" ]; then
                         _extract "${extract}"
                         _mkdir_p ~/.static-get
@@ -412,7 +412,7 @@ _static_get() {
                         else
                             printf "%s\\n" "ERROR: sudo isn't available, exiting ..." >&2
                         fi
-                        
+
                         if ! [ "${extract}" ]; then
                             cd "../" && rm -rf "${_sget__bfile%%.tar*}"
                         fi
