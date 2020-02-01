@@ -393,6 +393,8 @@ _static_get() {
                         else
                             printf "%s\\n" "ERROR: sudo isn't available, exiting ..." >&2
                         fi
+                    elif [ "${i}" = "1" ]; then
+                        printf "ERROR: package %s could not be removed.\\n" $(echo "${_sget__bfile}" | cut -d "-" -f 1) >&2
                     fi
                 elif [ "${_sget__hash}" = "${_sget__hash_new}" ]; then
                     _cat "${tmpcache}.${uniq_id_mirror}/${_sget__bfile}"
