@@ -208,7 +208,7 @@ _get_available_archs() {
         _fetch "${1}/${2}" index.html
     fi
     awk  -F'"' '/href/ {if ($2 != "../") {sub(/\//,"",$2);print $2}}' \
-        "${tmpcache}.${uniq_id_mirror}/${2}/index.html" 2>/dev/null
+        "${tmpcache}.${uniq_id_mirror}/${2}/index.html" 2>/dev/null | grep -v "lock"
 }
 
 _get_package_indexes() {
@@ -559,7 +559,7 @@ for arg in "${@}"; do #parse options
             esac
             ;;
 
-        '-t'|'--distro'|t*|--distro*)
+        '-t'|'--distro'|-t*|--distro*)
             case "${arg}" in
                 '-t'|'--distro')
                     if [ "${#}" -gt "1" ]; then

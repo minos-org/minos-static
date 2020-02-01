@@ -51,6 +51,7 @@ printf "\\n"
 #result and cleanup
 if [ "${failed}" -gt "0" ]; then
     printf "FAILED: passed: ${passed}/${ran}, failed: ${failed}/${ran}\\n"
+    exit 1
 else
     printf "OK: passed: ${passed}/${ran}\\n"
     cd ..
