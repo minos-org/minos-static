@@ -386,10 +386,10 @@ _static_get() {
                         mkdir -p ~/.static-get
                         if [ -w "${prefix}/" ]; then
                             cd "${_sget__bfile%%.tar*}" && \
-                            cp -vr * "${prefix}/" | cut -d "'" -f 4 > ~/.static-get/${1} || return 1
+                            cp -vr * "${prefix}/" | cut -d "'" -f 4 > ~/.static-get/$(echo $_sget__bfile | cut -d "-" -f 1) || return 1
                         elif [ command -v "sudo" >/dev/null 2>&1 ]; then
                             cd "${_sget__bfile%%.tar*}" && \
-                            sudo cp -vr * "${prefix}/" | cut -d "'" -f 4 > ~/.static-get/${1} || return 1
+                            sudo cp -vr * "${prefix}/" | cut -d "'" -f 4 > ~/.static-get/$(echo $_sget__bfile | cut -d "-" -f 1) || return 1
                         else
                             printf "%s\\n" "ERROR: sudo isn't available, exiting ..." >&2
                         fi
