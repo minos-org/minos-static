@@ -51,7 +51,7 @@ _basename() {
 
 _die() {
     [ -z "${1}" ] || printf "%s\\n" "${*}" >&2
-    _usage; >&2; exit 1
+    _usage >&2; exit 1
 }
 
 _update() {
@@ -98,10 +98,10 @@ _update() {
                 return 1
             fi
         fi
-        printf "%s %s\\n" "${progname} is up-to-date (${_u__update_version_long})"
+        printf "%s\\n" "${progname} is up-to-date (${_u__update_version_long})"
         return 0
     fi
-    printf "%s %s\\n" "${progname} is up-to-date (${_u__current_version_long})"
+    printf "%s\\n" "${progname} is up-to-date (${_u__current_version_long})"
     rm -rf "${_u__tmpfile}"
 }
 
@@ -154,7 +154,7 @@ _cat() {
     else
         case "${output_fname}" in
               -) cat "${1}"; return 0 ;;
-        *\{#\}*) output_counter="$(($output_counter + 1))"
+        *\{#\}*) output_counter="$((output_counter + 1))"
                  cat "${1}" >> "${directory}/$(printf "%s\\n" "${output_fname}" | \
                      sed "s:{#}:${output_counter}:")"
                  ;;
@@ -190,7 +190,7 @@ _get_available_distros() {
     [ -z "${uniq_id_mirror}" ] && uniq_id_mirror="$(_uniq_id_mirror "${1}")"
     _mkdir_p "${tmpcache}.${uniq_id_mirror}"
     if [ ! -f "${tmpcache}.${uniq_id_mirror}/index.html" ]; then
-        cd "${tmpcache}.${uniq_id_mirror}"
+        cd "${tmpcache}.${uniq_id_mirror}" || return
         _fetch "${1}" index.html
     fi
     awk  -F'"' '/href/ {if ($2 != "../" && $2 != "robots.txt") {sub(/\//,"",$2);print $2}}' \
@@ -206,7 +206,7 @@ _get_available_archs() {
     _mkdir_p "${tmpcache}.${uniq_id_mirror}/${2}"
 
     if [ ! -f "${tmpcache}.${uniq_id_mirror}/${2}/index.html" ]; then
-        cd "${tmpcache}.${uniq_id_mirror}/${2}"
+        cd "${tmpcache}.${uniq_id_mirror}/${2}" || return
         _fetch "${1}/${2}" index.html
     fi
     awk  -F'"' '/href/ {if ($2 != "../") {sub(/\//,"",$2);print $2}}' \
@@ -224,7 +224,7 @@ _get_package_indexes() {
             _mkdir_p "${tmpcache}.${uniq_id_mirror}/${gdistro}/${garch}"
             if [ ! -f "${tmpcache}.${uniq_id_mirror}/${gdistro}/${garch}/${checksum}sum.txt" ]; then
                 (
-                cd "${tmpcache}.${uniq_id_mirror}/${gdistro}/${garch}"
+                cd "${tmpcache}.${uniq_id_mirror}/${gdistro}/${garch}" || return
                 if _fetch "${1}/${gdistro}/${garch}/${checksum}sum.tar.${compress_format}"; then
                     ${compress_bin} < "${checksum}sum.tar.${compress_format}" | tar xf -
                 else
@@ -237,12 +237,12 @@ _get_package_indexes() {
 }
 
 _set_defaults() {
-    [ -z "${mirror}" ]         && mirror="s.minos.io/archive"
-    [ -z "${uniq_id_mirror}" ] && uniq_id_mirror="$(_uniq_id_mirror "${mirror}")"
-    [ -z "${distro}" ]         && distro="all"
-    [ -z "${arch}" ]           && arch="$(uname -m)"
-    [ -z "${directory}" ]      && directory="."
-    [ X"${output}" = X"-" ]    && directory="."
+    [ -z "${mirror}" ]            && mirror="s.minos.io/archive"
+    [ -z "${uniq_id_mirror}" ]    && uniq_id_mirror="$(_uniq_id_mirror "${mirror}")"
+    [ -z "${distro}" ]            && distro="all"
+    [ -z "${arch}" ]              && arch="$(uname -m)"
+    [ -z "${directory}" ]         && directory="."
+    [ X"${output_fname}" = X"-" ] && directory="."
 
     if [ -z "${dry_run}" ]; then
         _mkdir_p "${directory}" || { printf "%s\\n" "unable to create ${directory}, exiting"; exit 1; }
@@ -364,7 +364,7 @@ _static_get() {
                 if [ "${output_fname}" ]; then
                     case "${output_fname}" in
                         *\{#\}*) [ -z "${output_counter}" ] && output_counter="0"
-                             output_counter="$(($output_counter + 1))"
+                             output_counter="$((output_counter + 1))"
                              ;;
                     esac
                     printf "%s\\n" "${directory}/${output_fname}" | sed 's:\./::' | sed "s:{#}:${output_counter}:"
@@ -381,14 +381,14 @@ _static_get() {
 
                 if [ "${remove}" ]; then
                     if [ -e ~/.static-get/"${_sget__bfile_sub1}" ]; then
-                        if [ -w ~/.static-get/$(echo "${_sget__bfilei}" | cut -d "-" -f 1) ]; then
+                        if [ -w ~/.static-get/"${_sget__bfile_sub1}" ]; then
                             while read -r line; do
-                                rm -rf $line
+                                rm -rf "${line}"
                             done < ~/.static-get/"${_sget__bfile_sub1}"
                             rm ~/.static-get/"${_sget__bfile_sub1}"
-                        elif [ command -v "sudo" >/dev/null 2>&1 ]; then
+                        elif command -v "sudo" >/dev/null 2>&1; then
                             while read -r line; do
-                                sudo rm -rf $line
+                                sudo rm -rf "${line}"
                             done < ~/.static-get/"${_sget__bfile_sub1}"
                             sudo rm ~/.static-get/"${_sget__bfile_sub1}"
                         else
@@ -406,10 +406,10 @@ _static_get() {
                         _mkdir_p ~/.static-get
                         if [ -w "${prefix}/" ]; then
                             cd "${_sget__bfile%%.tar*}" && \
-                            cp -vr * "${prefix}/" | cut -d "'" -f 4 > ~/.static-get/"${_sget__bfile_sub1}" || return 1
-                        elif [ command -v "sudo" >/dev/null 2>&1 ]; then
+                            cp -vr -- * "${prefix}/" | cut -d "'" -f 4 > ~/.static-get/"${_sget__bfile_sub1}" || return 1
+                        elif command -v "sudo" >/dev/null 2>&1; then
                             cd "${_sget__bfile%%.tar*}" && \
-                            sudo cp -vr * "${prefix}/" | cut -d "'" -f 4 > ~/.static-get/"${_sget__bfile_sub1}" || return 1
+                            sudo cp -vr -- * "${prefix}/" | cut -d "'" -f 4 > ~/.static-get/"${_sget__bfile_sub1}" || return 1
                         else
                             printf "%s\\n" "ERROR: sudo isn't available, exiting ..." >&2
                         fi
@@ -439,6 +439,7 @@ tmpcache="/tmp/static-get"
 
 if [ ! -t 0 ]; then
     #there is input comming from pipe or file, add it to the end of $@
+    #shellcheck disable=SC2046
     set -- "${@}" $(cat)
 fi
 
