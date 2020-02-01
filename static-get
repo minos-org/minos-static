@@ -377,24 +377,25 @@ _static_get() {
 
             if [ -f "${tmpcache}.${uniq_id_mirror}/${_sget__bfile}" ]; then
                 _sget__hash_new="$($checksum_bin "${tmpcache}.${uniq_id_mirror}/${_sget__bfile}" | awk '{print $1}')"
+                _sget__bfile_sub1="$(printf "%s\\n" "${_sget__bfile}" | cut -d "-" -f 1)"
 
                 if [ "${remove}" ]; then
-                    if [ -e ~/.static-get/$(echo "${_sget__bfile}" | cut -d "-" -f 1) ]; then
+                    if [ -e ~/.static-get/"${_sget__bfile_sub1}" ]; then
                         if [ -w ~/.static-get/$(echo "${_sget__bfilei}" | cut -d "-" -f 1) ]; then
                             while read -r line; do
                                 rm -rf $line
-                            done < ~/.static-get/$(echo "${_sget__bfile}" | cut -d "-" -f 1)
-                            rm ~/.static-get/$(echo "${_sget__bfile}" | cut -d "-" -f 1)
+                            done < ~/.static-get/"${_sget__bfile_sub1}"
+                            rm ~/.static-get/"${_sget__bfile_sub1}"
                         elif [ command -v "sudo" >/dev/null 2>&1 ]; then
                             while read -r line; do
                                 sudo rm -rf $line
-                            done < ~/.static-get/$(echo "${_sget__bfile}" | cut -d "-" -f 1)
-                            sudo rm ~/.static-get/$(echo "${_sget__bfilei}" | cut -d "-" -f 1)
+                            done < ~/.static-get/"${_sget__bfile_sub1}"
+                            sudo rm ~/.static-get/"${_sget__bfile_sub1}"
                         else
                             printf "%s\\n" "ERROR: sudo isn't available, exiting ..." >&2
                         fi
                     elif [ "${i}" = "1" ]; then
-                        printf "ERROR: package %s could not be removed.\\n" $(echo "${_sget__bfile}" | cut -d "-" -f 1) >&2
+                        printf "ERROR: package %s could not be removed.\\n" "${_sget__bfile_sub1}" >&2
                     fi
                 elif [ "${_sget__hash}" = "${_sget__hash_new}" ]; then
                     _cat "${tmpcache}.${uniq_id_mirror}/${_sget__bfile}"
@@ -405,10 +406,10 @@ _static_get() {
                         _mkdir_p ~/.static-get
                         if [ -w "${prefix}/" ]; then
                             cd "${_sget__bfile%%.tar*}" && \
-                            cp -vr * "${prefix}/" | cut -d "'" -f 4 > ~/.static-get/$(echo $_sget__bfile | cut -d "-" -f 1) || return 1
+                            cp -vr * "${prefix}/" | cut -d "'" -f 4 > ~/.static-get/"${_sget__bfile_sub1}" || return 1
                         elif [ command -v "sudo" >/dev/null 2>&1 ]; then
                             cd "${_sget__bfile%%.tar*}" && \
-                            sudo cp -vr * "${prefix}/" | cut -d "'" -f 4 > ~/.static-get/$(echo $_sget__bfile | cut -d "-" -f 1) || return 1
+                            sudo cp -vr * "${prefix}/" | cut -d "'" -f 4 > ~/.static-get/"${_sget__bfile_sub1}" || return 1
                         else
                             printf "%s\\n" "ERROR: sudo isn't available, exiting ..." >&2
                         fi
