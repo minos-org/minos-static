@@ -1,6 +1,6 @@
 ## About
 
-[![Build Status](https://travis-ci.org/the-djdj/minos-static.png?branch=master)](https://travis-ci.org/the-djdj/minos-static)
+[![Build Status](https://travis-ci.org/minos-org/minos-static.png?branch=master)](https://travis-ci.org/minos-org/minos-static)
 
 Static linking is a technique where all the dependencies of a program are copied into the executable image, this requires extra disk space and memory (multiple copies of the same dependency could be located in several programs) but helps with portability and ease of usage, just download the binary and run it. Dynamic linking on the other hand is accomplished by placing only a reference of a sharable library in the executable. Actual linking with the library routines does not occur until the image is run, when both the executable and the library are placed in memory. An advantage of dynamic linking is that multiple programs can share a single copy of the library which saves space and allows to provide security updates efficiently.
 

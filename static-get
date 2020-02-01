@@ -6,7 +6,7 @@
 #git-1.8.2.1-3.tar.gz:sha512sum
 
 VERSION="2020.02.01-11:14"
-REPO="https://raw.githubusercontent.com/the-djdj/minos-static/master"
+REPO="https://raw.githubusercontent.com/minos-org/minos-static/master"
 
 _usage() {
     printf "%b\\n" "Usage: ${progname} [OPTION]... PACKAGE ..."
