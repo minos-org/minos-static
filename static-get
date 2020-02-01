@@ -20,6 +20,7 @@ _usage() {
     printf "%b\\n" "  -p, --prefix [dir]          specifies an install location for the package"
     printf "%b\\n" "  -n, --dry-run               perform a trial run with no changes made"
     printf "%b\\n" "  -c, --clean-cache           remove temporal files"
+    printf "%b\\n" "  -r, --remove                removes an installed package"
     printf "\\n"
     printf "%b\\n" "  -m, --mirror [s.minos.io]   set mirror"
     printf "%b\\n" "  -a, --arch   [x86_64|i686]  set architecture"
@@ -414,6 +415,10 @@ _static_get() {
     done
 }
 
+_remove_package() {
+    return 1
+}
+
 progname="$(_basename "${0}")"
 tmpcache="/tmp/static-get"
 
@@ -433,6 +438,7 @@ for arg in "${@}"; do #parse options
         -v|--verbose) verbose="1"; shift ;;
         -x|--extract) extract="1"; shift ;;
         -i|--install) install="1"; shift ;;
+	-r|--remove) _remove_package; exit "${?}" ;;
         -n|--dry-run) dry_run="1"; shift ;;
         '-p'|'--prefix'|-p*|--prefix*)
             case "${arg}" in
