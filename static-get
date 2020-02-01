@@ -378,7 +378,23 @@ _static_get() {
             if [ -f "${tmpcache}.${uniq_id_mirror}/${_sget__bfile}" ]; then
                 _sget__hash_new="$($checksum_bin "${tmpcache}.${uniq_id_mirror}/${_sget__bfile}" | awk '{print $1}')"
 
-                if [ "${_sget__hash}" = "${_sget__hash_new}" ]; then
+                if [ "${remove}" ]; then
+                    if [ -e ~/.static-get/$(echo "${_sget__bfile}" | cut -d "-" -f 1) ]; then
+                        if [ -w "${prefix}/" ]; then
+                            while read -r line; do
+                                rm -rf $line
+                            done < ~/.static-get/$(echo "${_sget__bfile}" | cut -d "-" -f 1)
+                            rm ~/.static-get/$(echo "${_sget__bfile}" | cut -d "-" -f 1)
+                        elif [ command -v "sudo" >/dev/null 2>&1 ]; then
+                            while read -r line; do
+                                sudo rm -rf $line
+                            done < ~/.static-get/$(echo "${_sget__bfile}" | cut -d "-" -f 1)
+                            sudo rm ~/.static-get/$(echo "${_sget__bfilei}" | cut -d "-" -f 1)
+                        else
+                            printf "%s\\n" "ERROR: sudo isn't available, exiting ..." >&2
+                        fi
+                    fi
+                elif [ "${_sget__hash}" = "${_sget__hash_new}" ]; then
                     _cat "${tmpcache}.${uniq_id_mirror}/${_sget__bfile}"
 
 		    # Install the package
@@ -415,10 +431,6 @@ _static_get() {
     done
 }
 
-_remove_package() {
-    return 1
-}
-
 progname="$(_basename "${0}")"
 tmpcache="/tmp/static-get"
 
@@ -438,7 +450,7 @@ for arg in "${@}"; do #parse options
         -v|--verbose) verbose="1"; shift ;;
         -x|--extract) extract="1"; shift ;;
         -i|--install) install="1"; shift ;;
-	-r|--remove) _remove_package; exit "${?}" ;;
+        -r|--remove)  remove="1";  shift ;;
         -n|--dry-run) dry_run="1"; shift ;;
         '-p'|'--prefix'|-p*|--prefix*)
             case "${arg}" in
@@ -607,6 +619,7 @@ for arg in "${@}"; do #parse options
             exit ;;
         '-') : ;; #special stdout character
         -*) _die "${progname}: unrecognized option '${arg}'" >&2 ;;
+
     esac
 done
 
