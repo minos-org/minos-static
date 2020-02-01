@@ -1,2 +1,2 @@
 language: shell
-script: cd tests/ && sh tests.sh && shellcheck ../static-get
+script: cd tests/ && sh tests.sh && shellcheck -e SC2015 ../static-get

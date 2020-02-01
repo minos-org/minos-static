@@ -115,6 +115,7 @@ _mkdir_p() { #portable mkdir -p
         [ -d "${_mkdir_p__dir}" ] && continue
         _mkdir_p__IFS="${IFS}"
         IFS="/"
+        #shellcheck disable=SC2086
         set -- ${_mkdir_p__dir}
         IFS="${_mkdir_p__IFS}"
         (
@@ -462,7 +463,7 @@ for arg in "${@}"; do #parse options
                     if [ "${#}" -gt "1" ]; then
                         case "${2}" in
                             '-') : ;; #special stdout character
-                             -*) printf "Option '${arg}' requires a parameter ${2}" ;;
+                             -*) printf "Option '%s' requires a parameter %s\\n" "${arg}" "${2}";;
                             '.') prefix="${PWD}" ; shift; shift; break ;;
                             '..')prefix="${PWD}/../" ; shift; shift; break ;;
                         esac
