@@ -380,14 +380,16 @@ _static_get() {
                 if [ "${_sget__hash}" = "${_sget__hash_new}" ]; then
                     _cat "${tmpcache}.${uniq_id_mirror}/${_sget__bfile}"
 
+		    # Install the package
                     if [ "${install}" ]; then
                         _extract "${extract}"
+                        mkdir -p ~/.static-get
                         if [ -w "${prefix}/" ]; then
                             cd "${_sget__bfile%%.tar*}" && \
-                            cp -r * "${prefix}/" || return 1
+                            cp -vr * "${prefix}/" | cut -d "'" -f 4 > ~/.static-get/${1} || return 1
                         elif [ command -v "sudo" >/dev/null 2>&1 ]; then
                             cd "${_sget__bfile%%.tar*}" && \
-                            sudo cp -r * "${prefix}/" || return 1
+                            sudo cp -vr * "${prefix}/" | cut -d "'" -f 4 > ~/.static-get/${1} || return 1
                         else
                             printf "%s\\n" "ERROR: sudo isn't available, exiting ..." >&2
                         fi
