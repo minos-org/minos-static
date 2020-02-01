@@ -69,8 +69,8 @@ test "$(static-get -fgz -p . allcaps-1-1 2>&1|wc -l)" -eq "1"
 test ! -d doc/ && test ! -d sbin/
 
 test "$(static-get -fgz -i -p . allcaps-1-1 2>&1|wc -l)" -eq "1"
-test -d doc/ && test -d sbin/
-rm -rf doc/ sbin/
+test -f sbin/allcaps
+rm  -rf sbin
 
 static-get -fgz -i -p . allcaps-1-1
 static-get -fgz -r allcaps
