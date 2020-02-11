@@ -5,7 +5,7 @@
 #example: static-get git
 #git-1.8.2.1-3.tar.gz:sha512sum
 
-VERSION="2020.02.01-11:14"
+VERSION="2020.02.11-00:21"
 LATEST_URI_BASENAME="https://raw.githubusercontent.com/minos-org/minos-static/master"
 
 _usage() {
@@ -211,7 +211,8 @@ _get_available_archs() {
         _fetch "${1}/${2}" index.html
     fi
     awk  -F'"' '/href/ {if ($2 != "../") {sub(/\//,"",$2);print $2}}' \
-        "${tmpcache}.${uniq_id_mirror}/${2}/index.html" 2>/dev/null | grep -v "lock"
+        "${tmpcache}.${uniq_id_mirror}/${2}/index.html" 2>/dev/null | \
+        grep -v "lock"  | grep -v "archive/"
 }
 
 _get_package_indexes() {
@@ -226,8 +227,10 @@ _get_package_indexes() {
             if [ ! -f "${tmpcache}.${uniq_id_mirror}/${gdistro}/${garch}/${checksum}sum.txt" ]; then
                 (
                 cd "${tmpcache}.${uniq_id_mirror}/${gdistro}/${garch}" || return
-                if _fetch "${1}/${gdistro}/${garch}/${checksum}sum.tar.${compress_format}"; then
+                if   _fetch "${1}/${gdistro}/${garch}/${checksum}sum.tar.${compress_format}"; then
                     ${compress_bin} < "${checksum}sum.tar.${compress_format}" | tar xf -
+                elif _fetch "${1}/${gdistro}/${garch}/${checksum}sum.txt"; then
+                    :
                 else
                     head -3 "${checksum}sum.tar.${compress_format}" >&2
                 fi
