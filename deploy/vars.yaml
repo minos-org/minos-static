@@ -2,5 +2,4 @@ domain:    s.minos.io
 port:      80
 wwwroot:   /var/www/s.minos.io/
 buildroot: /home/admin/minos-static
-cdn:       http://rawgit.loltek.net/https://raw.githubusercontent.com/minos-org/minos-static/79325ed314f92ff71bf27bd80f20983d8b07b6
-29/static-get
+cdn:       http://rawgit.loltek.net/https://raw.githubusercontent.com/minos-org/minos-static/79325ed314f92ff71bf27bd80f20983d8b07b629/static-get
