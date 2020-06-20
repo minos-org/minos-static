@@ -4,6 +4,8 @@
 bdir="$(cd "$(dirname "${0}")" && pwd)"
 alert_mails="m#%#javier.io"
 PS4="> "
+_tempfile-cmd=$(command -v tempfile || command -v mktemp)
+
 
 #crontab jobs run in a very sparse environment
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin:/sbin"
@@ -69,7 +71,7 @@ _die() {
 _clone() {
     [ -z "${1}" ] && return 1
     [ -z "${2}" ] && _clone__target="${bdir}/$(_basename "${1}")" || _clone__target="${2}"
-    _clone__stdout="$(tempfile || mktemp)"
+    _clone__stdout="$(_tempfile-cmd)"
 
     printf "%s\\n" "cloning: ${1}"
     if [ -d "${_clone__target}" ]; then
