@@ -69,7 +69,7 @@ _die() {
 _clone() {
     [ -z "${1}" ] && return 1
     [ -z "${2}" ] && _clone__target="${bdir}/$(_basename "${1}")" || _clone__target="${2}"
-    _clone__stdout="$(tempfile)"
+    _clone__stdout="$(tempfile || mktemp)"
 
     printf "%s\\n" "cloning: ${1}"
     if [ -d "${_clone__target}" ]; then
