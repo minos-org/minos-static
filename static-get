@@ -266,12 +266,21 @@ _set_defaults() {
         *)   if command -v "xzcat" >/dev/null 2>&1; then
                  compress_format="xz"
                  compress_bin="xzcat"
+             elif command -v "xz" >/dev/null 2>&1; then
+                 compress_format="xz"
+                 compress_bin="xz -cd"
              elif command -v "bzcat" >/dev/null 2>&1; then
                  compress_format="bz2"
                  compress_bin="bzcat"
+             elif command -v "bzip2" >/dev/null 2>&1; then
+                 compress_format="bz2"
+                 compress_bin="bzip2 -cd"
              elif command -v "zcat" >/dev/null 2>&1; then
                  compress_format="gz"
                  compress_bin="zcat"
+             elif command -v "gzip" >/dev/null 2>&1; then
+                 compress_format="gz"
+                 compress_bin="gzip -cd"
              else
                 printf "%s\\n" "install either 'gzip', 'bzip2' or 'xz' to run this program" >&2
                 exit 1
