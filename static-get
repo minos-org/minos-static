@@ -177,7 +177,7 @@ _fetch() {
            case "${retriever_bin}" in
                wget*) $retriever_bin -O "${2}" "${1}" >/dev/null || \
                       $retriever_bin -O "${2}" "http://${1}" >/dev/null ;;
-               curl*) ${retriever_bin# -O} -o "${2}" "${1}"  >/dev/null ;;
+               curl*) ${retriever_bin% -O} -o "${2}" "${1}"  >/dev/null ;;
                *) return 1 ;;
            esac
            ;;
