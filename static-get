@@ -228,7 +228,7 @@ _get_package_indexes() {
                 (
                 cd "${tmpcache}.${uniq_id_mirror}/${gdistro}/${garch}" || return
                 if   _fetch "${1}/${gdistro}/${garch}/${checksum}sum.tar.${compress_format}"; then
-                    ${compress_bin} < "${checksum}sum.tar.${compress_format}" | tar xf -
+                    ${compress_bin} < "${checksum}sum.tar.${compress_format}" | tar -xf -
                 elif _fetch "${1}/${gdistro}/${garch}/${checksum}sum.txt"; then
                     :
                 else
@@ -353,7 +353,7 @@ _static_search() {
 _extract() {
     _mkdir_p "${directory}/${_sget__bfile%%.tar*}"
     (cd "${directory}/${_sget__bfile%%.tar*}" && \
-    ${compress_bin} < "../${_sget__bfile}"  | tar xf -)
+    ${compress_bin} < "../${_sget__bfile}"  | tar -xf -)
 
     [ "${1}" ] && printf "%s\\n" "${directory}/${_sget__bfile%%.tar*}/" | sed 's:\./::'
 }
