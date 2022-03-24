@@ -189,12 +189,12 @@ if ! flock -n 9; then          #http://mywiki.wooledge.org/BashFAQ/045
 fi
 
 #get sources
-_clone git://github.com/minos-org/morpheus-base        "${bdir}/morpheus-build/morpheus-base"
-_clone git://github.com/minos-org/morpheus-scripts     "${bdir}/morpheus-build/morpheus-scripts"
-_clone git://github.com/minos-org/morpheus-ports       "${bdir}/morpheus-build/morpheus-ports"
-_clone git://github.com/minos-org/morpheus-ports-delta "${bdir}/morpheus-build/morpheus-ports-delta"
-_clone git://github.com/minos-org/morpheus-mkbuild     "${bdir}/morpheus-build/morpheus-mkbuild"
-_clone git://github.com/minos-org/bifrost-build        "${bdir}/morpheus-build/bifrost-build"
+_clone https://github.com/minos-org/morpheus-base        "${bdir}/morpheus-build/morpheus-base"
+_clone https://github.com/minos-org/morpheus-scripts     "${bdir}/morpheus-build/morpheus-scripts"
+_clone https://github.com/minos-org/morpheus-ports       "${bdir}/morpheus-build/morpheus-ports"
+_clone https://github.com/minos-org/morpheus-ports-delta "${bdir}/morpheus-build/morpheus-ports-delta"
+_clone https://github.com/minos-org/morpheus-mkbuild     "${bdir}/morpheus-build/morpheus-mkbuild"
+_clone https://github.com/minos-org/bifrost-build        "${bdir}/morpheus-build/bifrost-build"
 "${bdir}"/morpheus-build/bifrost-build/wget-finder mini-native-i586.tar.bz2:e812185082e4ab30b3799c19e5b8fb50 \
     -O "${bdir}"/morpheus-build/mini-native-i586.tar.bz2 >/dev/null || \
     _die "failed to fetch mini-native-i586.tar.bz2"

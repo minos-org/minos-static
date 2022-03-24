@@ -189,8 +189,8 @@ if ! flock -n 9; then          #http://mywiki.wooledge.org/BashFAQ/045
 fi
 
 #get sources
-_clone git://github.com/dimkr/rlsd2           "${bdir}/rlsd2-build/upstream-rlsd2"
-_clone git://github.com/minos-org/rlsd2-delta "${bdir}/rlsd2-build/minos-rlsd2"
+_clone https://github.com/dimkr/rlsd2           "${bdir}/rlsd2-build/upstream-rlsd2"
+_clone https://github.com/minos-org/rlsd2-delta "${bdir}/rlsd2-build/minos-rlsd2"
 _wget  "https://googledrive.com/host/0ByFmYLqbl00ofkxoTXNXMXZKNkJiZXdaUlNCY05XanVqMVpUNEVOeUIxODhGUVpmd281dEE/precise-i386-base.tar.gz" \
        "${bdir}/rlsd2-build/precise-i386-base.tar.gz"
 #_wget  "https://googledrive.com/host/0ByFmYLqbl00ofkxoTXNXMXZKNkJiZXdaUlNCY05XanVqMVpUNEVOeUIxODhGUVpmd281dEE/precise-amd64-base.tar.gz" \

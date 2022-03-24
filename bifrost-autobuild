@@ -145,8 +145,8 @@ if ! flock -n 9; then          #http://mywiki.wooledge.org/BashFAQ/045
 fi
 
 #get sources
-_clone git://github.com/minos-org/bifrost-build "${bdir}/bifrost-build/minos-bifrost"
-_clone git://github.com/jelaas/bifrost-build    "${bdir}/bifrost-build/upstream-bifrost"
+_clone https://github.com/minos-org/bifrost-build "${bdir}/bifrost-build/minos-bifrost"
+_clone https://github.com/jelaas/bifrost-build    "${bdir}/bifrost-build/upstream-bifrost"
 "${bdir}"/bifrost-build/minos-bifrost/wget-finder -O "${bdir}"/bifrost-build/mini-native-i586.tar.bz2 \
     mini-native-i586.tar.bz2:e812185082e4ab30b3799c19e5b8fb50 >/dev/null
 [ ! -f "${bdir}"/bifrost-build/mini-native-i586.tar.bz2 ] && _die "failed to fetch mini-native-i586.tar.bz2"
