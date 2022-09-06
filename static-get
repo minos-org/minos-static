@@ -72,7 +72,7 @@ _update() {
     _u__tmpfile="/tmp/${progname}.${$}.update"
 
     _u__error_msg="$(wget -q -O- --no-check-certificate "${_u__url}" \
-        > "${_u__tmpfile}" 2>&1   || curl -s "${_u__url}"  \
+        > "${_u__tmpfile}" 2>&1   || curl -L -s "${_u__url}"  \
         > "${_u__tmpfile}" 2>&1)" || { printf "%s\\n%s\\n" \
         "ERROR: Failed to fetch update, please try later or update manually" \
         "${_u__error_msg}" >&2; return 1; }
@@ -307,7 +307,7 @@ _set_defaults() {
     if command -v "wget" >/dev/null 2>&1; then
         retriever_bin="wget -q"
     elif command -v "curl" >/dev/null 2>&1; then
-        retriever_bin="curl -s -O"
+        retriever_bin="curl -L -s -O"
     elif command -v "fetch" >/dev/null 2>&1; then
         retriever_bin="fetch"
     else
