@@ -1,7 +1,5 @@
 ## About
 
-[![Build Status](https://travis-ci.org/minos-org/minos-static.png?branch=master)](https://travis-ci.org/minos-org/minos-static)
-
 Static linking is a technique where all the dependencies of a program are copied into the executable image, this requires extra disk space and memory (multiple copies of the same dependency could be located in several programs) but helps with portability and ease of usage, just download the binary and run it. Dynamic linking on the other hand is accomplished by placing only a reference of a sharable library in the executable. Actual linking with the library routines does not occur until the image is run, when both the executable and the library are placed in memory. An advantage of dynamic linking is that multiple programs can share a single copy of the library which saves space and allows to provide security updates efficiently.
 
 On Linux, most distributions use dynamic linking because of the above advantages, however at the same time that is also the cause of being binary incompatible with others, or even with themselves in different releases. Since dynamic linking requires a strict management of global libraries most Linux package systems require administration privileges to install new software and don't allow to install several versions of the same application. With static linking there is no need for special privileges unless it's desired to place the static binary in a global context and it's possible to have several versions of the same program without conflicts.
@@ -35,6 +33,12 @@ $ static-get --search
 - misc-autosync / misc-autosync-resources (to the described url)
 
 [New recipes](https://github.com/minos-org/minos-static/wiki/new-recipes#new-package) are welcome =)!
+
+## Alternatives
+
+Over time, I've had less and less time to work actively on this project, binaries are and will be available on the near future but other projects are keeping up similar efforts with more momentum.
+
+- [https://github.com/Azathothas/Toolpacks](https://github.com/Azathothas/Toolpacks)
 
 ## Mirroring
 
